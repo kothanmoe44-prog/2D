@@ -114,16 +114,17 @@
             <div>
                 <label class="text-xs font-bold text-emerald-400 block mb-1 flex justify-between">
                     <span>✍️ အတိုကောက် စာရင်းရိုက်ထည့်ရန် (Keyboard Enter ↵ နှိပ်ပါ)</span>
-                    <span class="text-[10px] text-slate-400">ဥပမာ - 12 100, a100, x100, w100, 1p100, 70 80 88 100r200</span>
+                    <span class="text-[10px] text-slate-400">ဥပမာ - 12 100, a100, x100, w100, 1p100, 6b500, 70 80 88 100r200</span>
                 </label>
                 <form id="entryForm" onsubmit="handleFormSubmit(event)" class="flex gap-2">
-                    <input type="text" id="shorthandInput" placeholder="ဥပမာ: 12 100, a100, 1p100, w100, x100, 123z100, 70 80 88 100r200" class="bg-slate-900 text-white font-mono text-sm rounded-lg p-3 w-full border border-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none uppercase tracking-wide">
+                    <input type="text" id="shorthandInput" placeholder="ဥပမာ: 12 100, a100, 1p100, 6b500, w100, x100, 123z100, 70 80 88 100r200" class="bg-slate-900 text-white font-mono text-sm rounded-lg p-3 w-full border border-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none uppercase tracking-wide">
                     <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-5 py-3 rounded-lg shadow-lg shrink-0 transition flex items-center gap-1"><span>သွင်းမည်</span><span class="text-xs opacity-75">(Enter ↵)</span></button>
                 </form>
             </div>
             <div class="mt-3 pt-2 border-t border-slate-700/60 text-[11px] text-slate-400 flex flex-wrap gap-2">
                 <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>a/A:</b> အပူး (00-99)</span>
                 <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>1p-0p:</b> ပတ်သီး</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>0b-9b:</b> ဘီ အတွဲ ၁၀ တွဲ (ဥပမာ 6b500 = ၁၀ တွဲ × ၅၀၀)</span>
                 <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>w:</b> ဝဲ</span>
                 <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>x:</b> ခွီး/ဘေးညီ</span>
                 <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>n:</b> နက္ခတ်</span>
@@ -441,6 +442,26 @@ function parseShorthand(inputStr) {
     const reversePair = n => n.length !== 2 ? [n] : [...new Set([n, n[1] + n[0]])];
     let m;
 
+    // B shorthand: each digit has a predefined set of ten two-digit numbers.
+    // Example: 6b500 adds 500 Ks to each of the ten numbers (5,000 Ks total).
+    const bSets = {
+        '0': ['00','19','91','28','82','37','73','46','64','55'],
+        '1': ['01','10','29','92','38','83','47','74','56','65'],
+        '2': ['11','20','02','39','93','48','84','57','75','66'],
+        '3': ['12','21','30','03','49','94','58','85','67','76'],
+        '4': ['40','04','13','31','22','59','95','68','86','77'],
+        '5': ['50','05','14','41','23','32','69','96','78','87'],
+        '6': ['60','06','15','51','24','42','33','88','79','97'],
+        '7': ['07','70','61','16','25','52','34','43','89','98'],
+        '8': ['08','80','71','17','26','62','35','53','44','99'],
+        '9': ['90','09','81','18','72','27','36','63','45','54']
+    };
+    if ((m = cleanStr.match(/^([0-9])b\s*(\d+)$/i))) {
+        const amount = parseInt(m[2], 10);
+        bSets[m[1]].forEach(num => entries.push({num, amount}));
+        return entries;
+    }
+
     if ((m = cleanStr.match(/^a\s*(\d+)$/i))) {
         const amt = parseInt(m[1], 10);
         ['00','11','22','33','44','55','66','77','88','99'].forEach(num => entries.push({num, amount:amt}));
@@ -525,7 +546,7 @@ function handleFormSubmit(e) {
     const inputEl=document.getElementById('shorthandInput'), rawVal=inputEl.value;
     if(!currentCustomer) return alert('ကျေးဇူးပြု၍ ဝယ်သူ နာမည် ရွေးချယ်ပါ။');
     const parsed=parseShorthand(rawVal);
-    if(!parsed || !parsed.length) return alert('အတိုကောက် ရိုက်ပုံစံ မှားယွင်းနေပါသည်။ (ဥပမာ - 12 100, a100, x100, w100, 1p100)');
+    if(!parsed || !parsed.length) return alert('အတိုကောက် ရိုက်ပုံစံ မှားယွင်းနေပါသည်။ (ဥပမာ - 12 100, a100, x100, w100, 1p100, 6b500)');
     const logId=Date.now(); let totalAdded=0;
     parsed.forEach(item => {
         if(ledgerData[item.num]) {
