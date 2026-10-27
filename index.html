@@ -41,14 +41,14 @@
       <p id="accessStatus" class="text-sm text-slate-200">သုံးခွင့်အခြေအနေ စစ်ဆေးနေသည်…</p>
       <div id="paymentForm" class="space-y-2">
         <p class="text-sm">တစ်ခါပေးငွေ — <b id="currentPrice" class="text-amber-300">၅,၀၀၀ ကျပ်</b></p>
-        <p class="text-xs text-slate-300">ငွေလွှဲရန် KPay/WavePay အကောင့်ကို Admin ထံမှ အတည်ပြုရယူပါ။ ငွေလွှဲပြီးမှ အောက်ပါအချက်အလက်တင်ပါ။</p>
+        <p class="text-xs text-slate-300">ငွေလွှဲရန် KPay/WavePay အကောင့်ကို Admin ထံမှ အတည်ပြုရယူပါ။ ငွေလွှဲပြီးမှ ငွေလွှဲ ID နောက်ဆုံး ၅ လုံးကို ထည့်ပါ။</p>
         <div class="rounded-lg border border-emerald-500 bg-slate-900 p-3 space-y-2" role="note">
           <p class="font-bold text-emerald-300">📞 ငွေပေးချေပြီးပါက ဖုန်းဆက်ပါ</p>
           <p class="text-sm text-slate-200">ငွေပေးချေပြီးပါက အတည်ပြုရန် ဖုန်းဆက်သွယ်ပေးပါ။ Admin က ငွေလွှဲမှုကို စစ်ဆေးပြီးမှ Lifetime သုံးခွင့် ဖွင့်ပေးပါမည်။</p>
           <a href="tel:09762506891" class="inline-block rounded-lg bg-emerald-700 hover:bg-emerald-600 px-4 py-2 font-bold text-white">📱 09762506891 သို့ ဖုန်းဆက်ရန်</a>
         </div>
         <label class="block text-xs">ငွေပေးချေမှုနည်းလမ်း</label><select id="payMethod" class="w-full bg-slate-900 border border-slate-600 rounded p-2"><option>KPay</option><option>WavePay</option></select>
-        <label class="block text-xs">ငွေလွှဲပြေစာ Screenshot (JPG/PNG, 5MB အထိ)</label><input id="payScreenshot" type="file" accept="image/png,image/jpeg,image/webp" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs">
+        <label class="block text-xs">ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး</label><input id="payReference" type="text" inputmode="numeric" autocomplete="off" maxlength="5" minlength="5" pattern="[0-9]{5}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs" placeholder="ဥပမာ - 12345" aria-describedby="paymentIdHelp"><p id="paymentIdHelp" class="text-xs text-slate-400">Screenshot မလိုပါ။ ငွေလွှဲ ID ရဲ့ နောက်ဆုံး ဂဏန်း ၅ လုံးကို ထည့်ပါ။</p>
         <button id="submitPayment" class="bg-amber-600 rounded-lg px-4 py-2 font-bold">ငွေလွှဲအတည်ပြုရန် တင်မည်</button>
         <p id="paymentMessage" class="text-xs text-amber-200"></p>
       </div>
@@ -58,8 +58,15 @@
         <label class="block text-xs">KPay လက်ခံအကောင့်/ဖုန်း</label><input id="adminKpay" class="w-full bg-slate-900 border border-slate-600 rounded p-2" placeholder="KPay အကောင့်အချက်အလက်">
         <label class="block text-xs">WavePay လက်ခံအကောင့်/ဖုန်း</label><input id="adminWave" class="w-full bg-slate-900 border border-slate-600 rounded p-2" placeholder="WavePay အကောင့်အချက်အလက်">
         <button id="savePaymentSettings" class="bg-sky-600 rounded-lg px-4 py-2 font-bold">ဈေးနှုန်း/ငွေလက်ခံအချက်အလက် သိမ်းမည်</button>
+        <div class="border border-slate-600 rounded-lg p-3 space-y-2">
+          <h4 class="font-bold">အသုံးပြုသူ Access ပိတ်/ပြန်ဖွင့်</h4>
+          <label class="block text-xs">အသုံးပြုသူ UID</label>
+          <input id="manageAccessUid" class="w-full bg-slate-900 border border-slate-600 rounded p-2" placeholder="ငွေပေးချေမှုစာရင်းမှ UID ကို ကူးထည့်ပါ">
+          <div class="flex flex-wrap gap-2"><button id="blockAccessBtn" class="bg-rose-700 rounded px-3 py-2 font-bold">Access ပိတ်မည်</button><button id="unblockAccessBtn" class="bg-sky-700 rounded px-3 py-2 font-bold">Access ပြန်ဖွင့်မည်</button></div>
+          <p class="text-xs text-slate-400">ပိတ်ထားလျှင် Login ဝင်နိုင်သော်လည်း Ledger ကို အသုံးမပြုနိုင်ပါ။</p>
+        </div>
         <div id="pendingPayments" class="space-y-2"></div>
-        <p class="text-xs text-slate-400">သင့် Admin UID ကို HTML နှင့် Firestore Rules နှစ်နေရာစလုံးတွင် သတ်မှတ်ထားရမည်။</p>
+        <p class="text-xs text-slate-400">Admin UID ကို HTML နှင့် Firestore Rules နှစ်နေရာစလုံးတွင် သတ်မှတ်ထားရမည်။</p>
       </div>
     </section>
     <div id="ledgerContent" class="hidden">
@@ -279,9 +286,11 @@ async function refreshPaymentAccess(user){
   document.getElementById('adminKpay').value=settings.kpay||'';
   document.getElementById('adminWave').value=settings.wave||'';
   const statusSnap=await fbDb.doc('users/'+user.uid+'/account/access').get();
-  lifetimeApproved=isAdmin||(statusSnap.exists&&statusSnap.data().lifetimeApproved===true);
-  document.getElementById('accessStatus').textContent=lifetimeApproved?'✅ Lifetime သုံးခွင့် အတည်ပြုပြီးပါပြီ။ သက်တမ်းကုန်ဆုံးရက် မရှိပါ။': '⏳ Lifetime သုံးခွင့် မရသေးပါ။ ငွေလွှဲပြေစာ Screenshot တင်ကာ Admin အတည်ပြုချက်ကို စောင့်ပါ။';
-  document.getElementById('paymentForm').classList.toggle('hidden',lifetimeApproved);
+  const accessData=statusSnap.exists?statusSnap.data():{};
+  const accessBlocked=accessData.accessBlocked===true;
+  lifetimeApproved=isAdmin||(!accessBlocked&&accessData.lifetimeApproved===true);
+  document.getElementById('accessStatus').textContent=accessBlocked?'⛔ Admin က သင့်အသုံးပြုခွင့်ကို ပိတ်ထားပါသည်။ အကူအညီအတွက် 09762506891 သို့ ဆက်သွယ်ပါ။':(lifetimeApproved?'✅ Lifetime သုံးခွင့် အတည်ပြုပြီးပါပြီ။ သက်တမ်းကုန်ဆုံးရက် မရှိပါ။':'⏳ Lifetime သုံးခွင့် မရသေးပါ။ ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး ထည့်ပြီး Admin အတည်ပြုချက်ကို စောင့်ပါ။');
+  document.getElementById('paymentForm').classList.toggle('hidden',lifetimeApproved||accessBlocked);
   if(isAdmin) await loadPendingPayments();
   if(settings.kpay||settings.wave){
    const info=document.createElement('p'); info.className='text-xs text-slate-200 whitespace-pre-wrap';
@@ -293,20 +302,14 @@ async function refreshPaymentAccess(user){
 async function submitPaymentRequest(){
  if(!signedInUser)return;
  const reference=document.getElementById('payReference').value.trim();
- const file=document.getElementById('payScreenshot').files[0];
- if(!reference){document.getElementById('paymentMessage').textContent='Transaction ID ထည့်ပါ။';return;}
- if(!file){document.getElementById('paymentMessage').textContent='ငွေလွှဲ Screenshot ပူးတွဲပါ။';return;}
- if(file.size>5*1024*1024){document.getElementById('paymentMessage').textContent='ပုံဖိုင် 5MB ထက် မကြီးရပါ။';return;}
- if(!['image/jpeg','image/png','image/webp'].includes(file.type)){document.getElementById('paymentMessage').textContent='JPG, PNG သို့မဟုတ် WEBP ပုံသာ တင်ပါ။';return;}
+ if(!/^[0-9]{5}$/.test(reference)){document.getElementById('paymentMessage').textContent='ငွေလွှဲ ID ၏ နောက်ဆုံး ဂဏန်း ၅ လုံးကို ထည့်ပါ။';return;}
  try{
-  document.getElementById('submitPayment').disabled=true;document.getElementById('paymentMessage').textContent='Screenshot တင်နေသည်…';
+  document.getElementById('submitPayment').disabled=true;document.getElementById('paymentMessage').textContent='တင်နေသည်…';
   const settings=(await fbDb.doc('settings/payment').get()).data()||{price:5000};
-  const path='paymentScreenshots/'+signedInUser.uid+'/'+Date.now()+'_'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const upload=await fbStorage.ref(path).put(file);const screenshotUrl=await upload.ref.getDownloadURL();
-  await fbDb.collection('paymentRequests').add({uid:signedInUser.uid,email:signedInUser.email||'',name:signedInUser.displayName||'',method:document.getElementById('payMethod').value,reference,screenshotUrl,screenshotPath:path,amount:Number(settings.price||5000),status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await fbDb.collection('paymentRequests').add({uid:signedInUser.uid,email:signedInUser.email||'',name:signedInUser.displayName||'',method:document.getElementById('payMethod').value,reference,amount:Number(settings.price||5000),status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
   document.getElementById('paymentMessage').textContent='တင်ပြီးပါပြီ။ အတည်ပြုရန် 09762506891 သို့ ဖုန်းဆက်ပါ။ Admin က ငွေလွှဲမှုကို စစ်ဆေးပေးပါမည်။';
-  document.getElementById('payReference').value='';document.getElementById('payScreenshot').value='';
- }catch(e){document.getElementById('paymentMessage').textContent='တင်မရပါ: '+e.message+' (Firebase Storage ဖွင့်ထားပြီး Rules ထည့်ထားကြောင်း စစ်ပါ)';}finally{document.getElementById('submitPayment').disabled=false;}
+  document.getElementById('payReference').value='';
+ }catch(e){document.getElementById('paymentMessage').textContent='တင်မရပါ: '+e.message+' (Firestore Rules ကို စစ်ပါ)';}finally{document.getElementById('submitPayment').disabled=false;}
 }
 async function savePaymentSettings(){
  if(!signedInUser||signedInUser.uid!==ADMIN_UID)return alert('Admin သာ ပြောင်းလဲနိုင်ပါသည်။');
@@ -320,12 +323,26 @@ async function loadPendingPayments(){
   const snap=await fbDb.collection('paymentRequests').where('status','==','pending').get(); holder.innerHTML='';
   if(snap.empty){holder.textContent='စောင့်ဆိုင်းနေသော ငွေပေးချေမှု မရှိပါ။';return;}
   snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='bg-slate-900 border border-slate-600 rounded p-3 text-xs space-y-1';
-   const info=document.createElement('p');info.textContent=(d.name?d.name+' | ':'')+(d.email||d.uid)+' | '+d.method+' | '+(d.amount||0).toLocaleString()+' ကျပ် | Ref: '+d.reference;card.appendChild(info);
-   if(d.screenshotUrl){const link=document.createElement('a');link.href=d.screenshotUrl;link.target='_blank';link.rel='noopener';link.textContent='📷 ငွေလွှဲ Screenshot ကြည့်ရန်';link.className='block text-sky-300 underline py-2';card.appendChild(link);}else{const noimg=document.createElement('p');noimg.textContent='Screenshot မပါပါ';noimg.className='text-amber-300';card.appendChild(noimg);}
-   const btn=document.createElement('button');btn.className='bg-emerald-700 rounded px-3 py-2 font-bold';btn.textContent='အတည်ပြု — Lifetime ဖွင့်မည်';btn.onclick=async()=>{if(!confirm('ငွေလွှဲမှုကို ကိုယ်တိုင်စစ်ပြီး အတည်ပြုပြီးပြီလား?'))return;try{await fbDb.doc('users/'+d.uid+'/account/access').set({lifetimeApproved:true,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedBy:signedInUser.uid,amount:d.amount,requestId:doc.id},{merge:true});await doc.ref.update({status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp(),reviewedBy:signedInUser.uid});await loadPendingPayments();alert('Lifetime သုံးခွင့် ဖွင့်ပြီးပါပြီ။');}catch(e){alert('အတည်မပြုနိုင်ပါ: '+e.message);}};card.appendChild(btn);holder.appendChild(card);
+   const info=document.createElement('p');info.textContent=(d.name?d.name+' | ':'')+(d.email||d.uid)+' | '+d.method+' | '+(d.amount||0).toLocaleString()+' ကျပ် | ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး: '+d.reference;card.appendChild(info);
+   const actions=document.createElement('div');actions.className='flex flex-wrap gap-2 mt-2';
+   const btn=document.createElement('button');btn.className='bg-emerald-700 rounded px-3 py-2 font-bold';btn.textContent='အတည်ပြု — Lifetime ဖွင့်မည်';btn.onclick=async()=>{if(!confirm('ငွေလွှဲမှုကို KPay/WavePay ထဲတွင် ကိုယ်တိုင်စစ်ပြီး အတည်ပြုပြီးပြီလား?'))return;try{await fbDb.doc('users/'+d.uid+'/account/access').set({lifetimeApproved:true,accessBlocked:false,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedBy:signedInUser.uid,amount:d.amount,requestId:doc.id},{merge:true});await doc.ref.update({status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp(),reviewedBy:signedInUser.uid});await loadPendingPayments();alert('Lifetime သုံးခွင့် ဖွင့်ပြီးပါပြီ။');}catch(e){alert('အတည်မပြုနိုင်ပါ: '+e.message);}};actions.appendChild(btn);
+   const reject=document.createElement('button');reject.className='bg-rose-700 rounded px-3 py-2 font-bold';reject.textContent='ငြင်းပယ်မည်';reject.onclick=async()=>{if(!confirm('ဒီငွေပေးချေမှုတောင်းဆိုချက်ကို ငြင်းပယ်မလား?'))return;try{await doc.ref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp(),reviewedBy:signedInUser.uid});await loadPendingPayments();alert('တောင်းဆိုချက်ကို ငြင်းပယ်ပြီးပါပြီ။');}catch(e){alert('ငြင်းပယ်မရပါ: '+e.message);}};actions.appendChild(reject);
+   const block=document.createElement('button');block.className='bg-slate-700 rounded px-3 py-2 font-bold';block.textContent='UID ကူးယူ၍ Access ပိတ်ရန်';block.onclick=()=>{document.getElementById('manageAccessUid').value=d.uid;document.getElementById('manageAccessUid').scrollIntoView({behavior:'smooth',block:'center'});};actions.appendChild(block);card.appendChild(actions);holder.appendChild(card);
   });
  }catch(e){holder.textContent='Pending စာရင်းမဖတ်နိုင်ပါ။ Firestore Rules ကို စစ်ပါ။';console.error(e);}
 }
+async function setUserAccessBlocked(blocked){
+ if(!signedInUser||signedInUser.uid!==ADMIN_UID)return alert('Admin သာ အသုံးပြုနိုင်ပါသည်။');
+ const uid=document.getElementById('manageAccessUid').value.trim();
+ if(!uid)return alert('အသုံးပြုသူ UID ထည့်ပါ။');
+ if(uid===ADMIN_UID)return alert('Admin ကိုယ်တိုင်၏ Access ကို ဒီနေရာမှ ပိတ်မရပါ။');
+ if(!confirm(blocked?'ဒီအသုံးပြုသူ၏ Ledger Access ကို ပိတ်မလား?':'ဒီအသုံးပြုသူ၏ Ledger Access ကို ပြန်ဖွင့်မလား?'))return;
+ try{await fbDb.doc('users/'+uid+'/account/access').set({accessBlocked:blocked,accessUpdatedAt:firebase.firestore.FieldValue.serverTimestamp(),accessUpdatedBy:signedInUser.uid},{merge:true});alert(blocked?'Access ပိတ်ပြီးပါပြီ။':'Access ပြန်ဖွင့်ပြီးပါပြီ။');}
+ catch(e){alert('Access ပြောင်းမရပါ: '+e.message+' (Firestore Rules ကို စစ်ပါ)');}
+}
+document.getElementById('blockAccessBtn').addEventListener('click',()=>setUserAccessBlocked(true));
+document.getElementById('unblockAccessBtn').addEventListener('click',()=>setUserAccessBlocked(false));
+
 async function writeCloudData(){
  if(!signedInUser || cloudLoadInProgress) return;
  const payload={customers,ledgerData,logHistory,currentLimit,ledgerDate:document.getElementById('ledgerDate').value,ledgerTime:document.getElementById('ledgerTime').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
