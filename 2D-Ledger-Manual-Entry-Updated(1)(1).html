@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Ledger Manager Pro (Port 8083)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap');
+        body { font-family: 'Padauk', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .grid-cell { min-height: 72px; font-size: 10px; line-height: 1.1; }
+    </style>
+</head>
+<body class="p-2 sm:p-4 max-w-7xl mx-auto">
+    <div id="authGate" class="fixed inset-0 z-[100] bg-slate-950/95 flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-2xl">
+        <h2 class="text-xl font-bold text-amber-400 mb-1">📊 Ledger App Login</h2>
+        <p class="text-sm text-slate-300 mb-4">အကောင့်ဝင်ပါ သို့မဟုတ် အကောင့်အသစ်ဖွင့်ပါ။</p>
+        <label class="block text-xs text-slate-300 mb-1">Email (လက်ရှိ Firebase login အတွက် လိုအပ်သည်)</label>
+        <input id="authEmail" type="email" autocomplete="email" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 mb-3 text-white" placeholder="your@email.com">
+        <label class="block text-xs text-slate-300 mb-1">Password (အနည်းဆုံး ၆ လုံး)</label>
+        <input id="authPassword" type="password" autocomplete="current-password" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 mb-3 text-white" placeholder="Password">
+        <div class="grid grid-cols-2 gap-2">
+          <button id="loginBtn" class="bg-sky-600 hover:bg-sky-500 rounded-lg p-3 font-bold">Login ဝင်မည်</button>
+          <button id="registerBtn" class="bg-emerald-700 hover:bg-emerald-600 rounded-lg p-3 font-bold">အကောင့်ဖွင့်မည်</button>
+        </div>
+        <p id="authMessage" class="text-sm text-amber-300 mt-3" role="status">Firebase နဲ့ ချိတ်ဆက်ရန် စောင့်နေသည်။</p>
+        <p class="text-[11px] text-slate-400 mt-3">အကောင့်ဖွင့်ပြီးနောက် Admin အတည်ပြုချက်ဖြင့် တစ်ခါပေးငွေ Lifetime သုံးခွင့်ရနိုင်သည်။</p>
+      </div>
+    </div>
+    <div id="accountBar" class="hidden sticky top-0 z-50 bg-slate-950 border border-slate-700 rounded-lg p-2 mb-3 flex items-center justify-between gap-2 text-xs">
+      <span id="signedInLabel" class="text-emerald-300 break-all"></span>
+      <button id="logoutBtn" class="bg-rose-700 rounded px-3 py-2 font-bold shrink-0">Logout</button>
+    </div>
+    <section id="paymentPanel" class="hidden bg-slate-800 border border-amber-500 rounded-xl p-4 mb-4 space-y-3">
+      <h2 class="font-bold text-amber-300">🔐 Lifetime သုံးခွင့် / ငွေပေးချေမှု</h2>
+      <p id="accessStatus" class="text-sm text-slate-200">သုံးခွင့်အခြေအနေ စစ်ဆေးနေသည်…</p>
+      <div id="paymentForm" class="space-y-2">
+        <p class="text-sm">တစ်ခါပေးငွေ — <b id="currentPrice" class="text-amber-300">၅,၀၀၀ ကျပ်</b></p>
+        <p class="text-xs text-slate-300">ငွေလွှဲရန် KPay/WavePay အကောင့်ကို Admin ထံမှ အတည်ပြုရယူပါ။ ငွေလွှဲပြီးမှ ငွေလွှဲ ID နောက်ဆုံး ၅ လုံးကို ထည့်ပါ။</p>
+        <div class="rounded-lg border border-emerald-500 bg-slate-900 p-3 space-y-2" role="note">
+          <p class="font-bold text-emerald-300">📞 ငွေပေးချေပြီးပါက ဖုန်းဆက်ပါ</p>
+          <p class="text-sm text-slate-200">ငွေပေးချေပြီးပါက အတည်ပြုရန် ဖုန်းဆက်သွယ်ပေးပါ။ Admin က ငွေလွှဲမှုကို စစ်ဆေးပြီးမှ Lifetime သုံးခွင့် ဖွင့်ပေးပါမည်။</p>
+          <a href="tel:09762506891" class="inline-block rounded-lg bg-emerald-700 hover:bg-emerald-600 px-4 py-2 font-bold text-white">📱 09762506891 သို့ ဖုန်းဆက်ရန်</a>
+        </div>
+        <label class="block text-xs">ငွေပေးချေမှုနည်းလမ်း</label><select id="payMethod" class="w-full bg-slate-900 border border-slate-600 rounded p-2"><option>KPay</option><option>WavePay</option></select>
+        <label class="block text-xs">ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး</label><input id="payReference" type="text" inputmode="numeric" autocomplete="off" maxlength="5" minlength="5" pattern="[0-9]{5}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs" placeholder="ဥပမာ - 12345" aria-describedby="paymentIdHelp"><p id="paymentIdHelp" class="text-xs text-slate-400">Screenshot မလိုပါ။ ငွေလွှဲ ID ရဲ့ နောက်ဆုံး ဂဏန်း ၅ လုံးကို ထည့်ပါ။</p>
+        <button id="submitPayment" class="bg-amber-600 rounded-lg px-4 py-2 font-bold">ငွေလွှဲအတည်ပြုရန် တင်မည်</button>
+        <p id="paymentMessage" class="text-xs text-amber-200"></p>
+      </div>
+      <div id="adminPanel" class="hidden border-t border-slate-600 pt-3 space-y-3">
+        <h3 class="font-bold text-emerald-300">🛠 Admin ဆက်တင်</h3>
+        <label class="block text-xs">တစ်ခါပေးငွေ (ကျပ်)</label><input id="adminPrice" type="number" min="0" step="500" class="w-full bg-slate-900 border border-slate-600 rounded p-2" value="5000">
+        <label class="block text-xs">KPay လက်ခံအကောင့်/ဖုန်း</label><input id="adminKpay" class="w-full bg-slate-900 border border-slate-600 rounded p-2" placeholder="KPay အကောင့်အချက်အလက်">
+        <label class="block text-xs">WavePay လက်ခံအကောင့်/ဖုန်း</label><input id="adminWave" class="w-full bg-slate-900 border border-slate-600 rounded p-2" placeholder="WavePay အကောင့်အချက်အလက်">
+        <button id="savePaymentSettings" class="bg-sky-600 rounded-lg px-4 py-2 font-bold">ဈေးနှုန်း/ငွေလက်ခံအချက်အလက် သိမ်းမည်</button>
+        <div class="border border-slate-600 rounded-lg p-3 space-y-2">
+          <h4 class="font-bold">အသုံးပြုသူ Access ပိတ်/ပြန်ဖွင့်</h4>
+          <label class="block text-xs">အသုံးပြုသူ UID</label>
+          <input id="manageAccessUid" class="w-full bg-slate-900 border border-slate-600 rounded p-2" placeholder="ငွေပေးချေမှုစာရင်းမှ UID ကို ကူးထည့်ပါ">
+          <div class="flex flex-wrap gap-2"><button id="blockAccessBtn" class="bg-rose-700 rounded px-3 py-2 font-bold">Access ပိတ်မည်</button><button id="unblockAccessBtn" class="bg-sky-700 rounded px-3 py-2 font-bold">Access ပြန်ဖွင့်မည်</button></div>
+          <p class="text-xs text-slate-400">ပိတ်ထားလျှင် Login ဝင်နိုင်သော်လည်း Ledger ကို အသုံးမပြုနိုင်ပါ။</p>
+        </div>
+        <div id="pendingPayments" class="space-y-2"></div>
+        <p class="text-xs text-slate-400">Admin UID ကို HTML နှင့် Firestore Rules နှစ်နေရာစလုံးတွင် သတ်မှတ်ထားရမည်။</p>
+      </div>
+    </section>
+    <div id="ledgerContent" class="hidden">
+    <header class="bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-lg mb-4 flex flex-wrap justify-between items-center gap-3">
+        <div>
+            <h1 class="text-xl font-bold text-amber-400 flex items-center gap-2">📊 2D Ledger Manager Pro</h1>
+            <p class="text-xs text-slate-400">အတိုကောက် စာရင်းသွင်းစနစ် & စာရင်းရှင်းလင်းရေး (Local Port: 8083)</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs bg-slate-900 px-3 py-2 rounded-lg border border-slate-700">
+            <input type="date" id="ledgerDate" class="bg-transparent text-slate-200 outline-none cursor-pointer">
+            <select id="ledgerTime" class="bg-slate-800 text-amber-300 font-bold px-2 py-1 rounded outline-none border border-slate-600">
+                <option value="AM">12:00 PM (AM Session)</option>
+                <option value="PM">04:30 PM (PM Session)</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow space-y-3">
+            <h2 class="text-sm font-bold text-sky-400 flex justify-between items-center">
+                <span>👤 ဝယ်ယူသူ/မိတ်ဆွေ ရွေးချယ်ရန်</span>
+                <span id="custCountBadge" class="text-[10px] bg-sky-900 text-sky-200 px-2 py-0.5 rounded-full">0/300</span>
+            </h2>
+            <div class="flex gap-2">
+                <select id="customerSelect" class="bg-slate-900 text-slate-200 text-xs rounded-lg p-2.5 w-full border border-slate-600 focus:ring-2 focus:ring-sky-500 outline-none">
+                    <option value="">-- ဝယ်သူ ရွေးပါ --</option>
+                </select>
+                <button onclick="addCustomerPrompt()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-2 rounded-lg font-bold shrink-0 shadow transition">+ အသစ်</button>
+            </div>
+            <div class="pt-2 border-t border-slate-700">
+                <label class="text-xs text-slate-300 font-semibold block mb-1">⚡ တစ်ကွက် Limit သတ်မှတ်ရန် (၁၀၀ - ၁ ဘီလီယံ):</label>
+                <div class="flex gap-2">
+                    <input type="number" id="limitInput" min="100" max="1000000000" value="1000" step="100" class="bg-slate-900 text-amber-300 font-mono text-sm font-bold rounded-lg p-2 w-full border border-slate-600 focus:ring-2 focus:ring-amber-500 outline-none" onchange="updateLimit()">
+                    <button onclick="updateLimit()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-2 rounded-lg font-bold shrink-0 shadow transition">ပြင်မည်</button>
+                </div>
+            </div>
+            <div class="pt-2 border-t border-slate-700 flex justify-between items-center gap-2">
+                <button onclick="exportDataBackup()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition w-1/2 flex items-center justify-center gap-1"><span>💾 Data သိမ်းမည်</span></button>
+                <button onclick="importDataBackup()" class="bg-blue-700 hover:bg-blue-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition w-1/2 flex items-center justify-center gap-1"><span>📂 Backup ပြန်တင်မည်</span></button>
+                <input type="file" id="backupFileInput" accept=".json" class="hidden" onchange="handleFileImport(event)">
+            </div>
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow lg:col-span-2 flex flex-col justify-between">
+            <div>
+                <label class="text-xs font-bold text-emerald-400 block mb-1 flex justify-between">
+                    <span>✍️ အတိုကောက် စာရင်းရိုက်ထည့်ရန် (Keyboard Enter ↵ နှိပ်ပါ)</span>
+                    <span class="text-[10px] text-slate-400">ဥပမာ - 12 100, a100, x100, w100, 1p100, 6b500, 70 80 88 100r200</span>
+                </label>
+                <form id="entryForm" onsubmit="handleFormSubmit(event)" class="flex gap-2">
+                    <input type="text" id="shorthandInput" placeholder="ဥပမာ: 12 100, a100, 1p100, 6b500, w100, x100, 123z100, 70 80 88 100r200" class="bg-slate-900 text-white font-mono text-sm rounded-lg p-3 w-full border border-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none uppercase tracking-wide">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-5 py-3 rounded-lg shadow-lg shrink-0 transition flex items-center gap-1"><span>သွင်းမည်</span><span class="text-xs opacity-75">(Enter ↵)</span></button>
+                </form>
+                <div id="manualEntryPanel" class="hidden mt-3 rounded-lg border border-emerald-600 bg-slate-900 p-3 space-y-2">
+                    <p class="text-sm font-bold text-emerald-300">ဂဏန်းများကို တစ်တွဲချင်းရိုက်ပါ (Enter နှိပ်လျှင် ငွေပမာဏသို့ ရွှေ့မည်)</p>
+                    <label for="manualNumbers" class="block text-xs text-slate-300">ဂဏန်းများထည့်ရန်</label>
+                    <input id="manualNumbers" type="text" inputmode="numeric" autocomplete="off" placeholder="ဥပမာ: 12 23 34 56 99" class="w-full bg-slate-800 text-white font-mono text-base rounded-lg p-3 border border-slate-600">
+                    <p class="text-xs text-slate-400">ဂဏန်း ၂ လုံးစီရိုက်ပါ။ `-` ကို အလိုအလျောက် ထည့်ပေးမည်။</p>
+                    <label for="manualAmount" class="block text-xs text-slate-300">ငွေပမာဏ</label>
+                    <input id="manualAmount" type="text" inputmode="text" autocomplete="off" placeholder="ဥပမာ: 100 သို့မဟုတ် 100 R400" class="w-full bg-slate-800 text-white font-mono text-base rounded-lg p-3 border border-slate-600">
+                    <div class="flex gap-2">
+                        <button type="button" id="manualSubmitBtn" class="bg-emerald-600 rounded-lg px-4 py-2 font-bold">စာရင်းသွင်းမည်</button>
+                        <button type="button" id="manualCancelBtn" class="bg-slate-700 rounded-lg px-4 py-2">ပိတ်မည်</button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-700/60 text-[11px] text-slate-400 flex flex-wrap gap-2">
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>a/A:</b> အပူး (00-99)</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>1p-0p:</b> ပတ်သီး</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>0b-9b:</b> ဘီ အတွဲ ၁၀ တွဲ (ဥပမာ 6b500 = ၁၀ တွဲ × ၅၀၀)</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>w:</b> ဝဲ</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>x:</b> ခွီး/ဘေးညီ</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>n:</b> နက္ခတ်</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>s/ss:</b> စုံ/စုံစုံ</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>m/mm:</b> မ/မမ</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>f/1f:</b> ထိပ်/နောက်</span>
+                <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>z/zz:</b> ခွေ</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-slate-800 p-3 sm:p-4 rounded-xl border border-slate-700 shadow-xl mb-4">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <span>🔢 00 မှ 99 ဂဏန်း ဇယားကွက်</span>
+                <span id="limitNotice" class="text-xs font-normal text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800">Limit: 1,000</span>
+            </h2>
+            <div class="text-xs text-slate-400 flex gap-3">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block"></span> ပုံမှန်</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Limit ပြည့်</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span> Limit ကျော်</span>
+            </div>
+        </div>
+        <div id="numberMatrix" class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2"></div>
+    </div>
+
+    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 shadow mb-4 flex flex-wrap gap-2 no-screenshot">
+        <button onclick="copyNumberList()" class="bg-sky-700 hover:bg-sky-600 text-white text-xs px-3 py-2 rounded-lg font-bold flex-1">📋 ဂဏန်းစာရင်း Copy</button>
+        <button onclick="copySummary()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-bold flex-1">🧾 စာရင်းချုပ် Copy</button>
+        <button onclick="saveLedgerScreenshot()" id="screenshotBtn" class="bg-violet-700 hover:bg-violet-600 text-white text-xs px-3 py-2 rounded-lg font-bold flex-1">🖼️ Screenshot သိမ်းမည်</button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="lg:col-span-2 space-y-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700"><p class="text-[11px] text-slate-400">စုစုပေါင်း စာရင်း</p><p id="statTotalAmount" class="text-lg font-bold text-emerald-400 font-mono">0 Ks</p></div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700"><p class="text-[11px] text-slate-400">Limit ထဲရှိ စုစုပေါင်းငွေ</p><p id="statInLimitAmount" class="text-lg font-bold text-sky-400 font-mono">0 Ks</p></div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700"><p class="text-[11px] text-slate-400">Limit ပြည့် အကွက်ပေါင်း</p><p id="statFullLimitCount" class="text-lg font-bold text-amber-400 font-mono">0 ကွက်</p></div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700"><p class="text-[11px] text-slate-400">Limit ပြည့် စုစုပေါင်းငွေ</p><p id="statFullLimitAmount" class="text-lg font-bold text-amber-300 font-mono">0 Ks</p></div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700"><p class="text-[11px] text-slate-400">Limit ကျော် စုစုပေါင်းငွေ</p><p id="statOverflowAmount" class="text-lg font-bold text-rose-400 font-mono">0 Ks</p></div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700"><p class="text-[11px] text-slate-400">Limit ကျော် အကွက်ပေါင်း</p><p id="statOverflowCount" class="text-lg font-bold text-rose-300 font-mono">0 ကွက်</p></div>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow">
+                <h3 class="text-sm font-bold text-rose-400 mb-2 flex items-center justify-between">
+                    <span>🚨 Limit ကျော်လွန်သည့် စာရင်း (သီးသန့် ထုတ်ယူရန်)</span>
+                    <button onclick="copyOverflowList()" class="text-xs bg-rose-950 text-rose-300 hover:bg-rose-900 border border-rose-800 px-2.5 py-1 rounded transition">📋 စာရင်း ကူးယူမည်</button>
+                </h3>
+                <div id="overflowContainer" class="bg-slate-900 p-3 rounded-lg border border-slate-700 min-h-[80px] max-h-[160px] overflow-y-auto text-xs font-mono text-rose-300 flex flex-wrap gap-2"><span class="text-slate-500 italic">Limit ကျော်သည့် ဂဏန်းမရှိသေးပါ။</span></div>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow flex flex-col sm:flex-row items-center gap-3">
+                <div class="w-full sm:w-auto">
+                    <label class="text-xs font-bold text-purple-400 block mb-1">🎯 ပေါက်ဂဏန်း စစ်ဆေးရန်</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="winningNumInput" maxlength="2" placeholder="12" class="bg-slate-900 text-purple-300 font-mono text-center font-bold text-lg rounded-lg w-20 p-1.5 border border-slate-600 focus:ring-2 focus:ring-purple-500 outline-none">
+                        <button onclick="checkWinningNumber()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-4 py-2 rounded-lg font-bold transition shrink-0">စစ်မည်</button>
+                    </div>
+                </div>
+                <div id="winningResult" class="text-xs text-slate-300 bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex-1 w-full min-h-[48px] flex items-center">ပေါက်ဂဏန်း ရိုက်ထည့်၍ စစ်ဆေးပါ။</div>
+            </div>
+        </div>
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-slate-200">📝 စာရင်းသွင်းမှု မှတ်တမ်း</h3>
+                    <button onclick="clearAllEntries()" class="text-xs text-rose-400 hover:underline">စာရင်းအားလုံးဖျက်မည်</button>
+                </div>
+                <div id="logContainer" class="bg-slate-900 p-2 rounded-lg border border-slate-700 h-[260px] overflow-y-auto space-y-1.5 text-xs font-mono"><div class="text-slate-500 text-center py-8">မှတ်တမ်း မရှိသေးပါ။</div></div>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /ledgerContent: hidden until lifetime access is approved -->
+<script>
+// Firebase project configuration supplied by the app owner.
+const firebaseConfig = {
+  apiKey: "AIzaSyAMWgqp4WSWHewzY7ndZh3SHtSje66X0hw",
+  authDomain: "d-ledger-aec97.firebaseapp.com",
+  projectId: "d-ledger-aec97",
+  storageBucket: "d-ledger-aec97.firebasestorage.app",
+  messagingSenderId: "672137318206",
+  appId: "1:672137318206:web:8c7ac007ae742b0c86e66f",
+  measurementId: "G-D7S5GSCRNS"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDb = firebase.firestore();
+const fbStorage = firebase.storage();
+// Admin UID is configured for this Firebase project.
+const ADMIN_UID = "XA6TUoGzuzYlFP7jZnN8fZGM4Uk2";
+let lifetimeApproved = false;
+let signedInUser = null;
+let cloudLoadInProgress = false;
+let cloudSaveTimer = null;
+function showAuthMessage(msg, error=false) {
+  const el=document.getElementById('authMessage'); if(el){el.textContent=msg;el.className='text-sm mt-3 '+(error?'text-rose-300':'text-amber-300');}
+}
+async function doLogin(register=false) {
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  if(!email || !password) return showAuthMessage('Email နဲ့ Password ဖြည့်ပါ။',true);
+  if(password.length<6) return showAuthMessage('Password အနည်းဆုံး ၆ လုံး ထည့်ပါ။',true);
+  showAuthMessage('လုပ်ဆောင်နေသည်…');
+  try {
+    if(register) {
+      await fbAuth.createUserWithEmailAndPassword(email,password);
+    } else await fbAuth.signInWithEmailAndPassword(email,password);
+  } catch(e) {
+    const messages={ 'auth/email-already-in-use':'ဒီ Email နဲ့ အကောင့်ရှိပြီးသားပါ။ Login ဝင်ပါ။','auth/invalid-email':'Email ပုံစံ မှားနေပါတယ်။','auth/weak-password':'ပိုမိုခိုင်မာတဲ့ Password သုံးပါ။','auth/user-not-found':'အကောင့်မတွေ့ပါ။ အရင် Register လုပ်ပါ။','auth/wrong-password':'Password မှားနေပါတယ်။','auth/invalid-credential':'Email သို့မဟုတ် Password မှားနေပါတယ်။','auth/operation-not-allowed':'Firebase Authentication မှာ Email/Password ကို Enable လုပ်ပါ။' };
+    showAuthMessage(messages[e.code] || ('မအောင်မြင်ပါ: '+e.message),true);
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+ document.getElementById('loginBtn').addEventListener('click',()=>doLogin(false));
+ document.getElementById('registerBtn').addEventListener('click',()=>doLogin(true));
+ document.getElementById('logoutBtn').addEventListener('click',()=>fbAuth.signOut());
+ document.getElementById('submitPayment').addEventListener('click',submitPaymentRequest);
+ document.getElementById('savePaymentSettings').addEventListener('click',savePaymentSettings); 
+});
+fbAuth.onAuthStateChanged(async user=>{
+ signedInUser=user;
+ const gate=document.getElementById('authGate'), bar=document.getElementById('accountBar');
+ if(!user){gate.classList.remove('hidden');bar.classList.add('hidden');document.getElementById('ledgerContent').classList.add('hidden');lifetimeApproved=false;return;}
+ document.getElementById('signedInLabel').textContent='ဝင်ထားသည်: '+user.email;
+ bar.classList.remove('hidden'); gate.classList.add('hidden');
+ document.getElementById('paymentPanel').classList.remove('hidden');
+ await refreshPaymentAccess(user);
+ document.getElementById('ledgerContent').classList.toggle('hidden', !lifetimeApproved);
+ try {
+   cloudLoadInProgress=true;
+   const ref=fbDb.collection('users').doc(user.uid).collection('private').doc('ledger');
+   const snap=await ref.get();
+   if(snap.exists){
+     const d=snap.data();
+     if(d.ledgerData) ledgerData=d.ledgerData;
+     if(Array.isArray(d.customers)) customers=d.customers;
+     if(Array.isArray(d.logHistory)) logHistory=d.logHistory;
+     if(Number.isFinite(d.currentLimit)) currentLimit=d.currentLimit;
+     if(d.ledgerDate) document.getElementById('ledgerDate').value=d.ledgerDate;
+     if(d.ledgerTime) document.getElementById('ledgerTime').value=d.ledgerTime;
+   } else {
+     // First login: migrate this browser's existing local data to the signed-in user's private cloud document.
+     loadFromLocalStorage();
+     await writeCloudData();
+   }
+   if(customers.length) currentCustomer=customers[0];
+   document.getElementById('limitInput').value=currentLimit;
+   document.getElementById('limitNotice').textContent='Limit: '+currentLimit.toLocaleString();
+   renderCustomerDropdown();renderMatrix();updateSummary();renderLogs();
+ } catch(e) { document.getElementById('accessStatus').textContent='Cloud စာရင်းဖတ်မရပါ။ Lifetime သုံးခွင့်မရသေးလျှင် ငွေပေးချေမှုတင်ပြီး Admin အတည်ပြုချက်ကို စောင့်ပါ။'; console.warn('Cloud ledger read:',e.message); }
+ finally { cloudLoadInProgress=false; }
+});
+async function refreshPaymentAccess(user){
+ const isAdmin=user.uid===ADMIN_UID;
+ document.getElementById('adminPanel').classList.toggle('hidden',!isAdmin);
+ try {
+  const settingSnap=await fbDb.doc('settings/payment').get();
+  const settings=settingSnap.exists?settingSnap.data():{price:5000,kpay:'',wave:''};
+  document.getElementById('currentPrice').textContent=Number(settings.price||5000).toLocaleString()+' ကျပ်';
+  document.getElementById('adminPrice').value=settings.price||5000;
+  document.getElementById('adminKpay').value=settings.kpay||'';
+  document.getElementById('adminWave').value=settings.wave||'';
+  const statusSnap=await fbDb.doc('users/'+user.uid+'/account/access').get();
+  const accessData=statusSnap.exists?statusSnap.data():{};
+  const accessBlocked=accessData.accessBlocked===true;
+  lifetimeApproved=isAdmin||(!accessBlocked&&accessData.lifetimeApproved===true);
+  document.getElementById('accessStatus').textContent=accessBlocked?'⛔ Admin က သင့်အသုံးပြုခွင့်ကို ပိတ်ထားပါသည်။ အကူအညီအတွက် 09762506891 သို့ ဆက်သွယ်ပါ။':(lifetimeApproved?'✅ Lifetime သုံးခွင့် အတည်ပြုပြီးပါပြီ။ သက်တမ်းကုန်ဆုံးရက် မရှိပါ။':'⏳ Lifetime သုံးခွင့် မရသေးပါ။ ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး ထည့်ပြီး Admin အတည်ပြုချက်ကို စောင့်ပါ။');
+  document.getElementById('paymentForm').classList.toggle('hidden',lifetimeApproved||accessBlocked);
+  if(isAdmin) await loadPendingPayments();
+  if(settings.kpay||settings.wave){
+   const info=document.createElement('p'); info.className='text-xs text-slate-200 whitespace-pre-wrap';
+   info.textContent='KPay: '+(settings.kpay||'မသတ်မှတ်ရသေး')+'\nWavePay: '+(settings.wave||'မသတ်မှတ်ရသေး');
+   const form=document.getElementById('paymentForm'); if(!lifetimeApproved) form.insertBefore(info,form.firstChild);
+  }
+ }catch(e){document.getElementById('accessStatus').textContent='သုံးခွင့်အခြေအနေ မဖတ်နိုင်ပါ။ Firestore Rules/Admin UID ကို စစ်ပါ။'; console.error(e);}
+}
+async function submitPaymentRequest(){
+ if(!signedInUser)return;
+ const reference=document.getElementById('payReference').value.trim();
+ if(!/^[0-9]{5}$/.test(reference)){document.getElementById('paymentMessage').textContent='ငွေလွှဲ ID ၏ နောက်ဆုံး ဂဏန်း ၅ လုံးကို ထည့်ပါ။';return;}
+ try{
+  document.getElementById('submitPayment').disabled=true;document.getElementById('paymentMessage').textContent='တင်နေသည်…';
+  const settings=(await fbDb.doc('settings/payment').get()).data()||{price:5000};
+  await fbDb.collection('paymentRequests').add({uid:signedInUser.uid,email:signedInUser.email||'',name:signedInUser.displayName||'',method:document.getElementById('payMethod').value,reference,amount:Number(settings.price||5000),status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  document.getElementById('paymentMessage').textContent='တင်ပြီးပါပြီ။ အတည်ပြုရန် 09762506891 သို့ ဖုန်းဆက်ပါ။ Admin က ငွေလွှဲမှုကို စစ်ဆေးပေးပါမည်။';
+  document.getElementById('payReference').value='';
+ }catch(e){document.getElementById('paymentMessage').textContent='တင်မရပါ: '+e.message+' (Firestore Rules ကို စစ်ပါ)';}finally{document.getElementById('submitPayment').disabled=false;}
+}
+async function savePaymentSettings(){
+ if(!signedInUser||signedInUser.uid!==ADMIN_UID)return alert('Admin သာ ပြောင်းလဲနိုင်ပါသည်။');
+ const price=Number(document.getElementById('adminPrice').value);
+ if(!Number.isFinite(price)||price<0)return alert('ဈေးနှုန်း မှန်ကန်စွာထည့်ပါ။');
+ try{await fbDb.doc('settings/payment').set({price,kpay:document.getElementById('adminKpay').value.trim(),wave:document.getElementById('adminWave').value.trim(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});alert('ဆက်တင် သိမ်းပြီးပါပြီ။');await refreshPaymentAccess(signedInUser);}catch(e){alert('မသိမ်းနိုင်ပါ: '+e.message);}
+}
+async function loadPendingPayments(){
+ const holder=document.getElementById('pendingPayments'); holder.innerHTML='<p class="text-sm">Pending ငွေပေးချေမှုများ ဖတ်နေသည်…</p>';
+ try{
+  const snap=await fbDb.collection('paymentRequests').where('status','==','pending').get(); holder.innerHTML='';
+  if(snap.empty){holder.textContent='စောင့်ဆိုင်းနေသော ငွေပေးချေမှု မရှိပါ။';return;}
+  snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='bg-slate-900 border border-slate-600 rounded p-3 text-xs space-y-1';
+   const info=document.createElement('p');info.textContent=(d.name?d.name+' | ':'')+(d.email||d.uid)+' | '+d.method+' | '+(d.amount||0).toLocaleString()+' ကျပ် | ငွေလွှဲ ID နောက်ဆုံး ၅ လုံး: '+d.reference;card.appendChild(info);
+   const actions=document.createElement('div');actions.className='flex flex-wrap gap-2 mt-2';
+   const btn=document.createElement('button');btn.className='bg-emerald-700 rounded px-3 py-2 font-bold';btn.textContent='အတည်ပြု — Lifetime ဖွင့်မည်';btn.onclick=async()=>{if(!confirm('ငွေလွှဲမှုကို KPay/WavePay ထဲတွင် ကိုယ်တိုင်စစ်ပြီး အတည်ပြုပြီးပြီလား?'))return;try{await fbDb.doc('users/'+d.uid+'/account/access').set({lifetimeApproved:true,accessBlocked:false,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedBy:signedInUser.uid,amount:d.amount,requestId:doc.id},{merge:true});await doc.ref.update({status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp(),reviewedBy:signedInUser.uid});await loadPendingPayments();alert('Lifetime သုံးခွင့် ဖွင့်ပြီးပါပြီ။');}catch(e){alert('အတည်မပြုနိုင်ပါ: '+e.message);}};actions.appendChild(btn);
+   const reject=document.createElement('button');reject.className='bg-rose-700 rounded px-3 py-2 font-bold';reject.textContent='ငြင်းပယ်မည်';reject.onclick=async()=>{if(!confirm('ဒီငွေပေးချေမှုတောင်းဆိုချက်ကို ငြင်းပယ်မလား?'))return;try{await doc.ref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp(),reviewedBy:signedInUser.uid});await loadPendingPayments();alert('တောင်းဆိုချက်ကို ငြင်းပယ်ပြီးပါပြီ။');}catch(e){alert('ငြင်းပယ်မရပါ: '+e.message);}};actions.appendChild(reject);
+   const block=document.createElement('button');block.className='bg-slate-700 rounded px-3 py-2 font-bold';block.textContent='UID ကူးယူ၍ Access ပိတ်ရန်';block.onclick=()=>{document.getElementById('manageAccessUid').value=d.uid;document.getElementById('manageAccessUid').scrollIntoView({behavior:'smooth',block:'center'});};actions.appendChild(block);card.appendChild(actions);holder.appendChild(card);
+  });
+ }catch(e){holder.textContent='Pending စာရင်းမဖတ်နိုင်ပါ။ Firestore Rules ကို စစ်ပါ။';console.error(e);}
+}
+async function setUserAccessBlocked(blocked){
+ if(!signedInUser||signedInUser.uid!==ADMIN_UID)return alert('Admin သာ အသုံးပြုနိုင်ပါသည်။');
+ const uid=document.getElementById('manageAccessUid').value.trim();
+ if(!uid)return alert('အသုံးပြုသူ UID ထည့်ပါ။');
+ if(uid===ADMIN_UID)return alert('Admin ကိုယ်တိုင်၏ Access ကို ဒီနေရာမှ ပိတ်မရပါ။');
+ if(!confirm(blocked?'ဒီအသုံးပြုသူ၏ Ledger Access ကို ပိတ်မလား?':'ဒီအသုံးပြုသူ၏ Ledger Access ကို ပြန်ဖွင့်မလား?'))return;
+ try{await fbDb.doc('users/'+uid+'/account/access').set({accessBlocked:blocked,accessUpdatedAt:firebase.firestore.FieldValue.serverTimestamp(),accessUpdatedBy:signedInUser.uid},{merge:true});alert(blocked?'Access ပိတ်ပြီးပါပြီ။':'Access ပြန်ဖွင့်ပြီးပါပြီ။');}
+ catch(e){alert('Access ပြောင်းမရပါ: '+e.message+' (Firestore Rules ကို စစ်ပါ)');}
+}
+document.getElementById('blockAccessBtn').addEventListener('click',()=>setUserAccessBlocked(true));
+document.getElementById('unblockAccessBtn').addEventListener('click',()=>setUserAccessBlocked(false));
+
+async function writeCloudData(){
+ if(!signedInUser || cloudLoadInProgress) return;
+ const payload={customers,ledgerData,logHistory,currentLimit,ledgerDate:document.getElementById('ledgerDate').value,ledgerTime:document.getElementById('ledgerTime').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+ await fbDb.collection('users').doc(signedInUser.uid).collection('private').doc('ledger').set(payload,{merge:true});
+}
+
+</script>
+<script>
+let customers = ['ဦးအေး', 'ဒေါ်မြ', 'ကိုစိုး', 'မသန်း'];
+let currentCustomer = customers[0];
+let currentLimit = 1000;
+let ledgerData = {};
+let logHistory = [];
+const STORAGE_KEY_DATA = '2d_ledger_data_v1';
+const STORAGE_KEY_CUST = '2d_ledger_cust_v1';
+const STORAGE_KEY_LOGS = '2d_ledger_logs_v1';
+
+for (let i = 0; i < 100; i++) ledgerData[i.toString().padStart(2, '0')] = [];
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadFromLocalStorage();
+    renderCustomerDropdown();
+    renderMatrix();
+    updateSummary();
+    renderLogs();
+    setupEnterListener();
+    document.getElementById('ledgerDate').value = new Date().toISOString().split('T')[0];
+});
+
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(ledgerData));
+        localStorage.setItem(STORAGE_KEY_CUST, JSON.stringify(customers));
+        localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logHistory));
+    } catch (e) { console.error('Auto-save failed', e); }
+    if (signedInUser && !cloudLoadInProgress) {
+      clearTimeout(cloudSaveTimer);
+      cloudSaveTimer=setTimeout(()=>writeCloudData().catch(e=>alert('Cloud သိမ်းမရပါ။ Firestore Rules/Internet ကို စစ်ပါ။')),500);
+    }
+}
+function loadFromLocalStorage() {
+    try {
+        const savedData = localStorage.getItem(STORAGE_KEY_DATA);
+        const savedCust = localStorage.getItem(STORAGE_KEY_CUST);
+        const savedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
+        if (savedData) ledgerData = JSON.parse(savedData);
+        if (savedCust) customers = JSON.parse(savedCust);
+        if (savedLogs) logHistory = JSON.parse(savedLogs);
+        if (customers.length) currentCustomer = customers[0];
+    } catch (e) { console.error('Load failed', e); }
+}
+function setupEnterListener() {
+    const shorthand = document.getElementById('shorthandInput');
+    const panel = document.getElementById('manualEntryPanel');
+    const numbers = document.getElementById('manualNumbers');
+    const amount = document.getElementById('manualAmount');
+    shorthand.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (!shorthand.value.trim()) {
+                e.stopPropagation();
+                panel.classList.remove('hidden');
+                // Delay focus slightly so Android Chrome can open the correct keyboard.
+                setTimeout(() => { numbers.focus(); numbers.click(); }, 80);
+            } else handleFormSubmit(e);
+        }
+    });
+    numbers.addEventListener('input', () => {
+        // Keep only digits and format every complete pair with a trailing hyphen.
+        const digits = numbers.value.replace(/\D/g, '');
+        const pairs = digits.match(/\d{1,2}/g) || [];
+        numbers.value = pairs.join('-') + (digits.length ? '-' : '');
+    });
+    numbers.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            amount.focus();
+            amount.click();
+        }
+    });
+    amount.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            submitManualEntry();
+        }
+    });
+    document.getElementById('manualSubmitBtn').addEventListener('click', submitManualEntry);
+    document.getElementById('manualCancelBtn').addEventListener('click', () => {
+        panel.classList.add('hidden'); numbers.value=''; amount.value=''; shorthand.focus();
+    });
+}
+function submitManualEntry() {
+    const numbersEl = document.getElementById('manualNumbers');
+    const amountEl = document.getElementById('manualAmount');
+    const digitsOnly = numbersEl.value.replace(/\D/g, '');
+    const amountText = amountEl.value.trim();
+    if (!digitsOnly || digitsOnly.length < 2) return alert('ဂဏန်း ၂ လုံးတွဲ အနည်းဆုံးတစ်တွဲ ထည့်ပါ။');
+    if (digitsOnly.length % 2 !== 0) return alert('ဂဏန်းကို ၂ လုံးတွဲစီ အပြည့်ထည့်ပါ။');
+    if (!amountText) return alert('ငွေပမာဏ ထည့်ပါ။');
+
+    // Manual mode: accept e.g. 5000, 5000r100, or 5000 R 100.
+    // The first amount applies to each typed pair; optional R amount applies to its reverse.
+    const amountMatch = amountText.match(/^(\d+)\s*(?:[rR]\s*(\d+))?$/);
+    if (!amountMatch) return alert('ပမာဏပုံစံ မှားနေပါသည်။ ဥပမာ 5000 သို့မဟုတ် 5000r100');
+    const directAmount = Number(amountMatch[1]);
+    const reverseAmount = amountMatch[2] === undefined ? null : Number(amountMatch[2]);
+    if (!Number.isFinite(directAmount) || (reverseAmount !== null && !Number.isFinite(reverseAmount))) {
+        return alert('ပမာဏသည် လက်ခံနိုင်သည့် ကိန်းဂဏန်းအကွာအဝေးထက် ကျော်နေပါသည်။');
+    }
+
+    const pairs = digitsOnly.match(/\d{2}/g) || [];
+    const parsed = [];
+    pairs.forEach(num => {
+        parsed.push({num, amount: directAmount});
+        const rev = num[1] + num[0];
+        if (reverseAmount !== null && rev !== num) parsed.push({num: rev, amount: reverseAmount});
+    });
+    const normalized = pairs.join('-') + ' ' + amountText;
+    addParsedEntries(parsed, normalized);
+    numbersEl.value = '';
+    amountEl.value = '';
+    document.getElementById('manualEntryPanel').classList.add('hidden');
+    document.getElementById('shorthandInput').value = '';
+    document.getElementById('shorthandInput').focus();
+}
+function renderCustomerDropdown() {
+    const select = document.getElementById('customerSelect');
+    select.innerHTML = '';
+    customers.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c; opt.selected = c === currentCustomer;
+        select.appendChild(opt);
+    });
+    document.getElementById('custCountBadge').textContent = `${customers.length}/300`;
+}
+document.getElementById('customerSelect').addEventListener('change', e => currentCustomer = e.target.value);
+function addCustomerPrompt() {
+    if (customers.length >= 300) return alert('လူဦးရေ ၃၀၀ ပြည့်သွားပါပြီ!');
+    const name = prompt('ဝယ်ယူသူ နာမည်သစ် ထည့်ပါ:');
+    if (name && name.trim()) {
+        const trimmed = name.trim();
+        if (!customers.includes(trimmed)) {
+            customers.push(trimmed); currentCustomer = trimmed;
+            renderCustomerDropdown(); saveToLocalStorage();
+        }
+    }
+}
+function updateLimit() {
+    const val = parseInt(document.getElementById('limitInput').value, 10);
+    if (!isNaN(val) && val >= 100 && val <= 1000000000) {
+        currentLimit = val;
+        document.getElementById('limitNotice').textContent = `Limit: ${val.toLocaleString()}`;
+        renderMatrix(); updateSummary();
+    } else alert('Limit ကို ၁၀၀ မှ ၁,၀၀၀,၀၀၀,၀၀၀ အထိ သတ်မှတ်ပေးပါ။');
+}
+function parseShorthand(inputStr) {
+    const cleanStr = inputStr.trim().toLowerCase();
+    if (!cleanStr) return null;
+    let entries = [];
+    const permuteDigits = digits => {
+        const results = new Set(), arr = digits.split('');
+        for (let i = 0; i < arr.length; i++) for (let j = 0; j < arr.length; j++) if (i !== j) results.add(arr[i] + arr[j]);
+        return [...results];
+    };
+    const reversePair = n => n.length !== 2 ? [n] : [...new Set([n, n[1] + n[0]])];
+    let m;
+
+    // B shorthand: each digit has a predefined set of ten two-digit numbers.
+    // Example: 6b500 adds 500 Ks to each of the ten numbers (5,000 Ks total).
+    const bSets = {
+        '0': ['00','19','91','28','82','37','73','46','64','55'],
+        '1': ['01','10','29','92','38','83','47','74','56','65'],
+        '2': ['11','20','02','39','93','48','84','57','75','66'],
+        '3': ['12','21','30','03','49','94','58','85','67','76'],
+        '4': ['40','04','13','31','22','59','95','68','86','77'],
+        '5': ['50','05','14','41','23','32','69','96','78','87'],
+        '6': ['60','06','15','51','24','42','33','88','79','97'],
+        '7': ['07','70','61','16','25','52','34','43','89','98'],
+        '8': ['08','80','71','17','26','62','35','53','44','99'],
+        '9': ['90','09','81','18','72','27','36','63','45','54']
+    };
+    if ((m = cleanStr.match(/^([0-9])b\s*(\d+)$/i))) {
+        const amount = parseInt(m[2], 10);
+        bSets[m[1]].forEach(num => entries.push({num, amount}));
+        return entries;
+    }
+
+    if ((m = cleanStr.match(/^a\s*(\d+)$/i))) {
+        const amt = parseInt(m[1], 10);
+        ['00','11','22','33','44','55','66','77','88','99'].forEach(num => entries.push({num, amount:amt}));
+        return entries;
+    }
+
+    if ((m = cleanStr.match(/^((?:\d{2}\s+)+)(\d+)\s*r\s*(\d+)$/i))) {
+        const nums = m[1].trim().split(/\s+/), directAmt = parseInt(m[2], 10), revAmt = parseInt(m[3], 10);
+        nums.forEach(n => { 
+            entries.push({num: n, amount: directAmt}); 
+            const rev = n[1] + n[0]; 
+            if (rev !== n) entries.push({num: rev, amount: revAmt}); 
+        });
+        return entries;
+    }
+
+    if ((m = cleanStr.match(/^((?:\d{2}\s+)+)(\d+)$/i))) {
+        m[1].trim().split(/\s+/).forEach(num => entries.push({num, amount: parseInt(m[2], 10)}));
+        return entries;
+    }
+
+    if ((m = cleanStr.match(/^(\d{2})\s*(\d+)\s*r\s*(\d+)$/i))) {
+        const n = m[1], a = parseInt(m[2], 10), b = parseInt(m[3], 10);
+        entries.push({num: n, amount: a}); 
+        const rev = n[1] + n[0]; 
+        if (rev !== n) entries.push({num: rev, amount: b}); 
+        return entries;
+    }
+
+    if ((m = cleanStr.match(/^(\d{2})\s*r\s*(\d+)$/i))) {
+        const n = m[1], amt = parseInt(m[2], 10);
+        entries.push({num: n, amount: amt});
+        const rev = n[1] + n[0];
+        if (rev !== n) entries.push({num: rev, amount: amt});
+        return entries;
+    }
+
+    if ((m = cleanStr.match(/^x\s*(\d+)$/i))) {
+        ['09','90','01','10','12','21','23','32','34','43','45','54','56','65','67','76','78','87','89','98'].forEach(num => entries.push({num, amount: parseInt(m[1], 10)})); return entries;
+    }
+    if ((m = cleanStr.match(/^(\d)p\s*(\d+)$/i))) {
+        const digit = m[1], amt = parseInt(m[2], 10);
+        for (let i = 0; i <= 9; i++) { entries.push({num: `${digit}${i}`, amount: amt}); if (String(i) !== digit) entries.push({num: `${i}${digit}`, amount: amt}); }
+        const map = {}; entries.forEach(e => map[e.num] = (map[e.num] || 0) + e.amount);
+        return Object.keys(map).map(num => ({num, amount: map[num]}));
+    }
+    if ((m = cleanStr.match(/^(\d)f\s*(\d+)$/i))) {
+        for (let i = 0; i <= 9; i++) entries.push({num: `${m[1]}${i}`, amount: parseInt(m[2], 10)}); return entries;
+    }
+    if ((m = cleanStr.match(/^f(\d)\s*(\d+)$/i))) {
+        for (let i = 0; i <= 9; i++) entries.push({num: `${i}${m[1]}`, amount: parseInt(m[2], 10)}); return entries;
+    }
+    if ((m = cleanStr.match(/^w\s*(\d+)$/i))) {
+        ['16','61','27','72','38','83','49','94','50','05'].forEach(num => entries.push({num, amount: parseInt(m[1], 10)})); return entries;
+    }
+    if ((m = cleanStr.match(/^n\s*(\d+)$/i))) {
+        ['18','81','24','42','35','53','69','96','07','70'].forEach(num => entries.push({num, amount: parseInt(m[1], 10)})); return entries;
+    }
+    if ((m = cleanStr.match(/^mm\s*(\d+)$/i))) {
+        ['11','33','55','77','99'].forEach(num => entries.push({num, amount: parseInt(m[1], 10)})); return entries;
+    }
+    if ((m = cleanStr.match(/^m\s*(\d+)$/i))) {
+        const odds = ['1','3','5','7','9']; for (const a of odds) for (const b of odds) if (a !== b) entries.push({num: a + b, amount: parseInt(m[1], 10)}); return entries;
+    }
+    if ((m = cleanStr.match(/^ss\s*(\d+)$/i))) {
+        ['00','22','44','66','88'].forEach(num => entries.push({num, amount: parseInt(m[1], 10)})); return entries;
+    }
+    if ((m = cleanStr.match(/^s\s*(\d+)$/i))) {
+        const evens = ['0','2','4','6','8']; for (const a of evens) for (const b of evens) if (a !== b) entries.push({num: a + b, amount: parseInt(m[1], 10)}); return entries;
+    }
+    if ((m = cleanStr.match(/^(\d+)zz\s*(\d+)$/i))) {
+        for (const d of m[1]) entries.push({num: d + d, amount: parseInt(m[2], 10)}); return entries;
+    }
+    if ((m = cleanStr.match(/^(\d+)z\s*(\d+)$/i))) {
+        permuteDigits(m[1]).forEach(num => entries.push({num, amount: parseInt(m[2], 10)})); return entries;
+    }
+    if ((m = cleanStr.match(/^(\d{2})\s+(\d+)$/))) return [{num: m[1], amount: parseInt(m[2], 10)}];
+    return null;
+}
+function handleFormSubmit(e) {
+    if(e) e.preventDefault();
+    const inputEl=document.getElementById('shorthandInput'), rawVal=inputEl.value;
+    if (!rawVal.trim()) {
+        document.getElementById('manualEntryPanel').classList.remove('hidden');
+        document.getElementById('manualNumbers').focus();
+        return;
+    }
+    const parsed=parseShorthand(rawVal);
+    if(!parsed || !parsed.length) return alert('အတိုကောက် ရိုက်ပုံစံ မှားယွင်းနေပါသည်။ (ဥပမာ - 12 100, a100, x100, w100, 1p100, 6b500)');
+    addParsedEntries(parsed, rawVal);
+    inputEl.value='';
+}
+function addParsedEntries(parsed, rawVal) {
+    if(!currentCustomer) return alert('ကျေးဇူးပြု၍ ဝယ်သူ နာမည် ရွေးချယ်ပါ။');
+    const logId=Date.now(); let totalAdded=0;
+    parsed.forEach(item => {
+        if(ledgerData[item.num] && Number.isFinite(item.amount) && item.amount >= 0) {
+            ledgerData[item.num].push({id:logId,customer:currentCustomer,amount:item.amount});
+            totalAdded+=item.amount;
+        }
+    });
+    logHistory.unshift({id:logId,raw:rawVal.toUpperCase(),customer:currentCustomer,total:totalAdded,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})});
+    saveToLocalStorage(); renderMatrix(); updateSummary(); renderLogs();
+}
+function renderMatrix() {
+    const container=document.getElementById('numberMatrix'); container.innerHTML='';
+    for(let i=0;i<100;i++){
+        const key=i.toString().padStart(2,'0'), items=ledgerData[key]||[];
+        const total=items.reduce((sum,x)=>sum+x.amount,0);
+        let cellBg='bg-slate-900 border-slate-700 text-slate-300', amountColor='text-slate-400', badgeText='', overflowDiv='';
+        if(total>0){
+            if(total===currentLimit){cellBg='bg-amber-950/90 border-amber-500 text-amber-200';amountColor='text-amber-300 font-bold';badgeText=`${items.length}q`;}
+            else if(total>currentLimit){cellBg='bg-rose-950/90 border-rose-600 text-rose-100';amountColor='text-rose-300 font-bold';badgeText=`${items.length}q`;overflowDiv=`<div class="text-[9px] text-rose-400 font-semibold mt-0.5">+${(total-currentLimit).toLocaleString()}</div>`;}
+            else {cellBg='bg-slate-800 border-slate-600 text-slate-200';amountColor='text-emerald-400 font-bold';badgeText=`${items.length}q`;}
+        }
+        const cell=document.createElement('div');
+        cell.className=`grid-cell border rounded-lg p-1.5 flex flex-col justify-between transition hover:scale-105 cursor-pointer shadow-sm ${cellBg}`;
+        cell.onclick=()=>showCellDetails(key);
+        cell.innerHTML=`<div class="flex justify-between items-center text-[10px] border-b border-white/10 pb-1 mb-1"><span class="font-extrabold font-mono text-amber-400 text-xs">${key}</span><span class="text-[9px] bg-slate-950/60 px-1 rounded text-slate-300">${badgeText}</span></div><div class="font-mono text-center my-auto ${amountColor}">${total>0?total.toLocaleString():'-'}</div>${overflowDiv}`;
+        container.appendChild(cell);
+    }
+}
+function updateSummary() {
+    let grandTotal=0,inLimitTotal=0,fullLimitCount=0,fullLimitTotalAmount=0,overflowTotal=0,overflowCount=0;
+    const overflowItems=[];
+    for(let i=0;i<100;i++){
+        const key=i.toString().padStart(2,'0'),items=ledgerData[key]||[],total=items.reduce((sum,x)=>sum+x.amount,0);
+        if(total>0){
+            grandTotal+=total;
+            if(total>=currentLimit){fullLimitCount++;fullLimitTotalAmount+=total;}
+            if(total<=currentLimit)inLimitTotal+=total;
+            else {inLimitTotal+=currentLimit;const over=total-currentLimit;overflowTotal+=over;overflowCount++;overflowItems.push({num:key,amount:over});}
+        }
+    }
+    document.getElementById('statTotalAmount').textContent=`${grandTotal.toLocaleString()} Ks`;
+    document.getElementById('statInLimitAmount').textContent=`${inLimitTotal.toLocaleString()} Ks`;
+    document.getElementById('statFullLimitCount').textContent=`${fullLimitCount} ကွက်`;
+    document.getElementById('statFullLimitAmount').textContent=`${fullLimitTotalAmount.toLocaleString()} Ks`;
+    document.getElementById('statOverflowAmount').textContent=`${overflowTotal.toLocaleString()} Ks`;
+    document.getElementById('statOverflowCount').textContent=`${overflowCount} ကွက်`;
+    const overContainer=document.getElementById('overflowContainer');
+    overContainer.innerHTML=overflowItems.length===0?'<span class="text-slate-500 italic">Limit ကျော်သည့် ဂဏန်းမရှိသေးပါ။</span>':overflowItems.map(item=>`<span class="bg-rose-950/80 border border-rose-800 text-rose-200 px-2 py-1 rounded shadow-sm"><strong class="text-amber-300">${item.num}</strong>: ${item.amount.toLocaleString()}</span>`).join('');
+}
+async function copyTextToClipboard(text, successMessage) {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+            const copied = document.execCommand('copy');
+            textarea.remove();
+            if (!copied) throw new Error('Clipboard copy failed');
+        }
+        alert(successMessage || 'Copy ကူးပြီးပါပြီ။');
+    } catch (error) {
+        alert('Copy မလုပ်နိုင်ပါ။ Browser ခွင့်ပြုချက်ကို စစ်ဆေးပြီး ထပ်ကြိုးစားပါ။');
+    }
+}
+function copyNumberList() {
+    const date = document.getElementById('ledgerDate').value || '';
+    const session = document.getElementById('ledgerTime').selectedOptions[0]?.textContent || '';
+    const lines = [`📋 ဂဏန်းစာရင်း`, `ရက်စွဲ: ${date} | ${session}`, `Limit: ${currentLimit.toLocaleString()} Ks`, ''];
+    let found = false;
+    for (let i = 0; i < 100; i++) {
+        const key = i.toString().padStart(2, '0');
+        const items = ledgerData[key] || [];
+        const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        if (total > 0) {
+            found = true;
+            lines.push(`${key} = ${total.toLocaleString()} Ks (${items.length} စာရင်း)`);
+            items.forEach(item => lines.push(`   - ${item.customer}: ${Number(item.amount).toLocaleString()} Ks`));
+        }
+    }
+    if (!found) return alert('Copy လုပ်ရန် ဂဏန်းစာရင်း မရှိသေးပါ။');
+    copyTextToClipboard(lines.join('\n'), 'ဂဏန်းစာရင်းကို Copy ကူးပြီးပါပြီ။');
+}
+function copySummary() {
+    const date = document.getElementById('ledgerDate').value || '';
+    const session = document.getElementById('ledgerTime').selectedOptions[0]?.textContent || '';
+    const rows = [
+        ['စုစုပေါင်း စာရင်း', 'statTotalAmount'],
+        ['Limit ထဲရှိ စုစုပေါင်းငွေ', 'statInLimitAmount'],
+        ['Limit ပြည့် အကွက်ပေါင်း', 'statFullLimitCount'],
+        ['Limit ပြည့် စုစုပေါင်းငွေ', 'statFullLimitAmount'],
+        ['Limit ကျော် စုစုပေါင်းငွေ', 'statOverflowAmount'],
+        ['Limit ကျော် အကွက်ပေါင်း', 'statOverflowCount']
+    ];
+    const lines = ['🧾 Ledger စာရင်းချုပ်', `ရက်စွဲ: ${date} | ${session}`, `Limit: ${currentLimit.toLocaleString()} Ks`, ''];
+    rows.forEach(([label, id]) => lines.push(`${label}: ${document.getElementById(id).textContent}`));
+    lines.push('', 'Limit ကျော် ဂဏန်းများ:');
+    let overflowFound = false;
+    for (let i = 0; i < 100; i++) {
+        const key = i.toString().padStart(2, '0');
+        const items = ledgerData[key] || [];
+        const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        if (total > currentLimit) {
+            overflowFound = true;
+            lines.push(`${key}: ${(total - currentLimit).toLocaleString()} Ks`);
+        }
+    }
+    if (!overflowFound) lines.push('မရှိပါ');
+    copyTextToClipboard(lines.join('\n'), 'စာရင်းချုပ်ကို Copy ကူးပြီးပါပြီ။');
+}
+function copyOverflowList() {
+    const list = [];
+    for (let i = 0; i < 100; i++) {
+        const key = i.toString().padStart(2, '0');
+        const items = ledgerData[key] || [];
+        const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        if (total > currentLimit) list.push(`${key} = ${(total - currentLimit).toLocaleString()}`);
+    }
+    if (!list.length) return alert('Limit ကျော်သည့် စာရင်းမရှိပါ။');
+    copyTextToClipboard(`🚨 Limit ကျော် စာရင်း (Limit: ${currentLimit.toLocaleString()}):\n${list.join('\n')}`, 'Limit ကျော် စာရင်းကို Copy ကူးပြီးပါပြီ။');
+}
+async function saveLedgerScreenshot() {
+    const button = document.getElementById('screenshotBtn');
+    if (typeof html2canvas !== 'function') {
+        return alert('Screenshot Feature အတွက် Internet ချိတ်ဆက်ပြီး စာမျက်နှာကို ပြန်ဖွင့်ပါ။');
+    }
+    const oldText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'ပုံဖန်တီးနေသည်...';
+    try {
+        await document.fonts.ready;
+        const canvas = await html2canvas(document.body, {
+            backgroundColor: '#0f172a',
+            scale: Math.min(window.devicePixelRatio || 1, 2),
+            useCORS: true,
+            logging: false,
+            windowWidth: Math.max(document.documentElement.scrollWidth, document.documentElement.clientWidth),
+            windowHeight: document.documentElement.scrollHeight,
+            onclone: clonedDoc => {
+                clonedDoc.querySelectorAll('.no-screenshot, button, input[type="file"]').forEach(el => {
+                    if (el.classList.contains('no-screenshot') || el.tagName === 'BUTTON') el.style.visibility = 'hidden';
+                });
+                clonedDoc.body.style.height = 'auto';
+                clonedDoc.body.style.overflow = 'visible';
+            }
+        });
+        const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Image conversion failed')), 'image/png'));
+        const fileName = `Ledger_${document.getElementById('ledgerDate').value || 'screenshot'}_${document.getElementById('ledgerTime').value}.png`;
+        const file = new File([blob], fileName, {type: 'image/png'});
+        if (navigator.canShare && navigator.canShare({files: [file]}) && navigator.share) {
+            try { await navigator.share({files: [file], title: 'Ledger စာရင်း'}); }
+            catch (shareError) {
+                if (shareError.name !== 'AbortError') downloadScreenshot(blob, fileName);
+            }
+        } else {
+            downloadScreenshot(blob, fileName);
+        }
+    } catch (error) {
+        console.error('Screenshot failed:', error);
+        alert('Screenshot မဖန်တီးနိုင်ပါ။ Internet ချိတ်ဆက်ထားပြီး ထပ်ကြိုးစားပါ။');
+    } finally {
+        button.disabled = false;
+        button.textContent = oldText;
+    }
+}
+function downloadScreenshot(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    alert('Screenshot ပုံကို သိမ်းရန် စတင်လိုက်ပါပြီ။ ဖုန်း Downloads ထဲမှာ စစ်ကြည့်ပါ။');
+}
+
+function renderLogs() {
+    const container=document.getElementById('logContainer');
+    if(!logHistory.length){container.innerHTML='<div class="text-slate-500 text-center py-8">မှတ်တမ်း မရှိသေးပါ။</div>';return;}
+    container.innerHTML=logHistory.map(log=>`<div class="bg-slate-800 p-2 rounded border border-slate-700 flex justify-between items-center"><div><div class="text-slate-200 font-bold">${log.raw}</div><div class="text-[10px] text-slate-400">👤 ${log.customer} | ⏰ ${log.time}</div></div><div class="text-right"><div class="text-emerald-400 font-bold">${log.total.toLocaleString()} Ks</div><button onclick="deleteLog(${log.id})" class="text-[10px] text-rose-400 hover:underline">ဖျက်မည်</button></div></div>`).join('');
+}
+function deleteLog(logId) {
+    if(!confirm('ဤစာရင်းကို ဖျက်ရန် သေချာပါသလား?'))return;
+    logHistory=logHistory.filter(l=>l.id!==logId);
+    for(let i=0;i<100;i++){const key=i.toString().padStart(2,'0');ledgerData[key]=(ledgerData[key]||[]).filter(item=>item.id!==logId);}
+    saveToLocalStorage();renderMatrix();updateSummary();renderLogs();
+}
+function clearAllEntries() {
+    if(!confirm('စာရင်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?'))return;
+    for(let i=0;i<100;i++)ledgerData[i.toString().padStart(2,'0')]=[];
+    logHistory=[];saveToLocalStorage();renderMatrix();updateSummary();renderLogs();
+}
+function showCellDetails(num) {
+    const items=ledgerData[num]||[],total=items.reduce((sum,x)=>sum+x.amount,0);
+    if(!items.length)return alert(`ဂဏန်း: ${num}\nစာရင်း မရှိသေးပါ။`);
+    const details=items.map(i=>`- ${i.customer}: ${i.amount.toLocaleString()} Ks`).join('\n');
+    const isOver=total>currentLimit?`\n🚨 Limit ကျော်လွန်မှု: ${(total-currentLimit).toLocaleString()} Ks`:'';
+    alert(`ဂဏန်း: ${num}\nစုစုပေါင်း: ${total.toLocaleString()} Ks (ကွက်ရေ: ${items.length})${isOver}\n\nအသေးစိတ် စာရင်း:\n${details}`);
+}
+function checkWinningNumber() {
+    const input=document.getElementById('winningNumInput').value.trim(),resEl=document.getElementById('winningResult');
+    if(!input||input.length!==2||isNaN(input)){resEl.innerHTML='<span class="text-rose-400">ဂဏန်း ၂ လုံး မှန်ကန်စွာ ထည့်ပါ (ဥပမာ: 12)</span>';return;}
+    const num=input.padStart(2,'0'),items=ledgerData[num]||[],total=items.reduce((sum,x)=>sum+x.amount,0);
+    if(total===0){resEl.innerHTML=`<span class="text-amber-400 font-bold">🎯 ဂဏန်း (${num}) တွင် စာရင်းမရှိပါ။ (ပေါက်ကြေးပေးရန် မလိုပါ)</span>`;return;}
+    const pay80=total*80,pay85=total*85,breakdown=items.map(i=>`${i.customer} (${i.amount.toLocaleString()} Ks)`).join(', ');
+    resEl.innerHTML=`<div><div class="font-bold text-emerald-400">🎉 ဂဏန်း (${num}) စုစုပေါင်း: ${total.toLocaleString()} Ks</div><div class="text-[11px] text-slate-300 mt-0.5">👥 ထိုးသူများ: ${breakdown}</div><div class="text-[11px] text-purple-300 font-bold mt-1">💵 ပေါက်ကြေး - (80 ဆ: ${pay80.toLocaleString()} Ks) | (85 ဆ: ${pay85.toLocaleString()} Ks)</div></div>`;
+}
+function exportDataBackup() {
+    const payload={date:document.getElementById('ledgerDate').value,time:document.getElementById('ledgerTime').value,limit:currentLimit,customers,ledgerData,logHistory};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`2D_Ledger_Backup_${payload.date}_${payload.time}.json`;a.click();URL.revokeObjectURL(url);
+}
+function importDataBackup(){document.getElementById('backupFileInput').click();}
+function handleFileImport(e) {
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=evt=>{
+        try{
+            const data=JSON.parse(evt.target.result);
+            if(data.ledgerData&&data.customers){
+                ledgerData=data.ledgerData;customers=data.customers;
+                if(data.logHistory)logHistory=data.logHistory;
+                if(data.limit)currentLimit=data.limit;
+                document.getElementById('limitInput').value=currentLimit;
+                document.getElementById('limitNotice').textContent=`Limit: ${currentLimit.toLocaleString()}`;
+                if(data.date)document.getElementById('ledgerDate').value=data.date;
+                if(data.time)document.getElementById('ledgerTime').value=data.time;
+                currentCustomer=customers[0]||'';
+                saveToLocalStorage();renderCustomerDropdown();renderMatrix();updateSummary();renderLogs();
+                alert('Data Backup ကို အောင်မြင်စွာ ပြန်လည်သွင်းယူပြီးပါပြီ!');
+            } else alert('Backup ဖိုင်ပုံစံ မှားယွင်းနေပါသည်။');
+        }catch(err){alert('ဖိုင်ဖတ်ရာတွင် အမှားအယွင်းရှိနေပါသည်။');}
+        e.target.value='';
+    };
+    reader.readAsText(file);
+}
+</script>
+</body>
+</html>
