@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+
+       
+        <!DOCTYPE html>
 <html lang="my">
 <head>
     <meta charset="UTF-8">
@@ -120,18 +122,6 @@
                     <input type="text" id="shorthandInput" placeholder="ဥပမာ: 12 100, a100, 1p100, 6b500, w100, x100, 123z100, 70 80 88 100r200" class="bg-slate-900 text-white font-mono text-sm rounded-lg p-3 w-full border border-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none uppercase tracking-wide">
                     <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-5 py-3 rounded-lg shadow-lg shrink-0 transition flex items-center gap-1"><span>သွင်းမည်</span><span class="text-xs opacity-75">(Enter ↵)</span></button>
                 </form>
-                <div id="manualEntryPanel" class="hidden mt-3 rounded-lg border border-emerald-600 bg-slate-900 p-3 space-y-2">
-                    <p class="text-sm font-bold text-emerald-300">ဂဏန်းများကို တစ်တွဲချင်းရိုက်ပါ (Enter နှိပ်လျှင် ငွေပမာဏသို့ ရွှေ့မည်)</p>
-                    <label for="manualNumbers" class="block text-xs text-slate-300">ဂဏန်းများထည့်ရန်</label>
-                    <input id="manualNumbers" type="text" inputmode="numeric" autocomplete="off" placeholder="ဥပမာ: 12 23 34 56 99" class="w-full bg-slate-800 text-white font-mono text-base rounded-lg p-3 border border-slate-600">
-                    <p class="text-xs text-slate-400">ဂဏန်း ၂ လုံးစီရိုက်ပါ။ `-` ကို အလိုအလျောက် ထည့်ပေးမည်။</p>
-                    <label for="manualAmount" class="block text-xs text-slate-300">ငွေပမာဏ</label>
-                    <input id="manualAmount" type="text" inputmode="text" autocomplete="off" placeholder="ဥပမာ: 100 သို့မဟုတ် 100 R400" class="w-full bg-slate-800 text-white font-mono text-base rounded-lg p-3 border border-slate-600">
-                    <div class="flex gap-2">
-                        <button type="button" id="manualSubmitBtn" class="bg-emerald-600 rounded-lg px-4 py-2 font-bold">စာရင်းသွင်းမည်</button>
-                        <button type="button" id="manualCancelBtn" class="bg-slate-700 rounded-lg px-4 py-2">ပိတ်မည်</button>
-                    </div>
-                </div>
             </div>
             <div class="mt-3 pt-2 border-t border-slate-700/60 text-[11px] text-slate-400 flex flex-wrap gap-2">
                 <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700"><b>a/A:</b> အပူး (00-99)</span>
@@ -408,51 +398,9 @@ function loadFromLocalStorage() {
     } catch (e) { console.error('Load failed', e); }
 }
 function setupEnterListener() {
-    const shorthand = document.getElementById('shorthandInput');
-    const panel = document.getElementById('manualEntryPanel');
-    const numbers = document.getElementById('manualNumbers');
-    const amount = document.getElementById('manualAmount');
-    shorthand.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (!shorthand.value.trim()) {
-                panel.classList.remove('hidden');
-                numbers.focus();
-            } else handleFormSubmit(e);
-        }
+    document.getElementById('shorthandInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); handleFormSubmit(e); }
     });
-    numbers.addEventListener('input', () => {
-        // Accept pairs separated by spaces or hyphens, then display them with automatic hyphens.
-        const digits = numbers.value.replace(/[^0-9]/g, '');
-        const pairs = [];
-        for (let i = 0; i + 1 < digits.length; i += 2) pairs.push(digits.slice(i, i + 2));
-        numbers.value = pairs.join('-') + (pairs.length ? '-' : '') + (digits.length % 2 ? digits.slice(-1) : '');
-    });
-    numbers.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); amount.focus(); }
-    });
-    amount.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); submitManualEntry(); }
-    });
-    document.getElementById('manualSubmitBtn').addEventListener('click', submitManualEntry);
-    document.getElementById('manualCancelBtn').addEventListener('click', () => {
-        panel.classList.add('hidden'); numbers.value=''; amount.value=''; shorthand.focus();
-    });
-}
-function submitManualEntry() {
-    const numbersEl = document.getElementById('manualNumbers');
-    const amountEl = document.getElementById('manualAmount');
-    const pairs = numbersEl.value.match(/[0-9]{2}/g) || [];
-    const amountText = amountEl.value.trim().toLowerCase();
-    if (!pairs.length) return alert('ဂဏန်း ၂ လုံးတွဲ အနည်းဆုံးတစ်တွဲ ထည့်ပါ။');
-    if (!amountText) return alert('ငွေပမာဏ ထည့်ပါ။');
-    const normalized = pairs.join(' ') + ' ' + amountText;
-    const parsed = parseShorthand(normalized);
-    if (!parsed || !parsed.length) return alert('ငွေပမာဏပုံစံ မှားနေပါသည်။ ဥပမာ 100 သို့မဟုတ် 100 r400');
-    addParsedEntries(parsed, normalized);
-    numbersEl.value=''; amountEl.value='';
-    document.getElementById('manualEntryPanel').classList.add('hidden');
-    document.getElementById('shorthandInput').focus();
 }
 function renderCustomerDropdown() {
     const select = document.getElementById('customerSelect');
@@ -598,27 +546,18 @@ function parseShorthand(inputStr) {
 function handleFormSubmit(e) {
     if(e) e.preventDefault();
     const inputEl=document.getElementById('shorthandInput'), rawVal=inputEl.value;
-    if (!rawVal.trim()) {
-        document.getElementById('manualEntryPanel').classList.remove('hidden');
-        document.getElementById('manualNumbers').focus();
-        return;
-    }
+    if(!currentCustomer) return alert('ကျေးဇူးပြု၍ ဝယ်သူ နာမည် ရွေးချယ်ပါ။');
     const parsed=parseShorthand(rawVal);
     if(!parsed || !parsed.length) return alert('အတိုကောက် ရိုက်ပုံစံ မှားယွင်းနေပါသည်။ (ဥပမာ - 12 100, a100, x100, w100, 1p100, 6b500)');
-    addParsedEntries(parsed, rawVal);
-    inputEl.value='';
-}
-function addParsedEntries(parsed, rawVal) {
-    if(!currentCustomer) return alert('ကျေးဇူးပြု၍ ဝယ်သူ နာမည် ရွေးချယ်ပါ။');
     const logId=Date.now(); let totalAdded=0;
     parsed.forEach(item => {
-        if(ledgerData[item.num] && Number.isFinite(item.amount) && item.amount >= 0) {
+        if(ledgerData[item.num]) {
             ledgerData[item.num].push({id:logId,customer:currentCustomer,amount:item.amount});
             totalAdded+=item.amount;
         }
     });
     logHistory.unshift({id:logId,raw:rawVal.toUpperCase(),customer:currentCustomer,total:totalAdded,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})});
-    saveToLocalStorage(); renderMatrix(); updateSummary(); renderLogs();
+    inputEl.value=''; saveToLocalStorage(); renderMatrix(); updateSummary(); renderLogs();
 }
 function renderMatrix() {
     const container=document.getElementById('numberMatrix'); container.innerHTML='';
