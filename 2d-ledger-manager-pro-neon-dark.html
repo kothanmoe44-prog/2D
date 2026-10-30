@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#070b18">
+<title>2D Ledger Manager Pro — Cyberpunk Neon</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap');
+:root{color-scheme:dark;--bg:#050611;--panel:#0a0d1d;--line:rgba(0,245,255,.20);--cyan:#00f5ff;--blue:#4d7cff;--purple:#ff2bd6;--acid:#d7ff3f;--muted:#9aa6c8}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 12% 0%,rgba(0,245,255,.13),transparent 28%),radial-gradient(ellipse at 92% 12%,rgba(255,43,214,.12),transparent 30%),linear-gradient(rgba(0,245,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,.025) 1px,transparent 1px),#050611;background-size:auto,auto,34px 34px,34px 34px,auto;color:#f4f7ff;font-family:Inter,Padauk,sans-serif;min-height:100vh;letter-spacing:.01em}
+.glass{background:linear-gradient(145deg,rgba(13,17,39,.94),rgba(7,9,23,.96));border:1px solid var(--line);box-shadow:0 18px 48px rgba(0,0,0,.32),0 0 0 1px rgba(0,245,255,.025),inset 0 1px rgba(255,255,255,.055);backdrop-filter:blur(18px);position:relative}
+.neon-border{border:1px solid transparent;background:linear-gradient(#0b0d20,#0b0d20) padding-box,linear-gradient(125deg,#00f5ff 0%,#4d7cff 43%,#ff2bd6 78%,#d7ff3f 100%) border-box;box-shadow:0 0 22px rgba(0,245,255,.08),inset 0 0 18px rgba(255,43,214,.035)}
+.neon-text{background:linear-gradient(95deg,#00f5ff 0%,#70a0ff 42%,#ff2bd6 78%,#d7ff3f 120%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(0,245,255,.16))}
+.btn-primary{background:linear-gradient(105deg,#00aebd,#345dff 52%,#d91cbd);border:1px solid rgba(0,245,255,.42);box-shadow:0 0 20px rgba(0,245,255,.16),0 8px 26px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.22);transition:transform .18s ease,filter .18s ease,box-shadow .18s ease;text-shadow:0 1px 8px rgba(0,0,0,.3)}
+.btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px);box-shadow:0 9px 30px rgba(59,130,246,.28)}
+.btn-primary:active{transform:translateY(0)}
+.field{width:100%;background:rgba(3,6,20,.88);border:1px solid rgba(103,128,190,.34);border-radius:12px;padding:12px 14px;color:#f8fbff;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
+.field:focus{border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,.09)}
+.field::placeholder{color:#617391}
+.nav-item{display:flex;align-items:center;gap:12px;width:100%;padding:12px 13px;border-radius:12px;color:#92a3c1;text-align:left;transition:background .18s,color .18s,border-color .18s;border:1px solid transparent}
+.nav-item>span{display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:7px;background:rgba(148,163,184,.07);font-size:15px}
+.nav-item:hover{background:rgba(59,130,246,.08);color:#f8fbff}
+.nav-item.active{background:linear-gradient(100deg,rgba(14,165,233,.14),rgba(124,58,237,.12));border-color:rgba(96,165,250,.2);color:#fff}
+.nav-item.active>span{background:rgba(34,211,238,.13);color:#67e8f9}
+.metric{position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.metric:hover{transform:translateY(-3px);border-color:rgba(103,232,249,.3)}
+.metric:after{content:"";position:absolute;width:100px;height:100px;border-radius:50%;right:-38px;top:-44px;background:var(--glow,rgba(34,211,238,.1));filter:blur(26px);pointer-events:none}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:650px}th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8196b9;font-weight:700;text-align:left;background:rgba(7,14,29,.72)}th,td{padding:15px 16px;border-bottom:1px solid rgba(71,101,154,.14)}tbody tr{transition:background .15s}tbody tr:hover{background:rgba(59,130,246,.055)}
+.pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:10px;letter-spacing:.02em;font-weight:800}.positive{color:#5eead4;background:rgba(13,148,136,.11);border:1px solid rgba(45,212,191,.19)}.negative{color:#fda4af;background:rgba(225,29,72,.10);border:1px solid rgba(251,113,133,.17)}.muted{color:#8296ba}
+button:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
+.hidden{display:none!important}
+@media(max-width:768px){.sidebar{position:fixed;z-index:50;left:0;top:0;bottom:0;width:260px;transform:translateX(-105%);transition:transform .25s}.sidebar.open{transform:translateX(0)}.mobile-overlay.show{display:block}.main-content{padding:13px}.metric{min-height:116px}th,td{padding:11px}.top-email{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+
+/* CYBERPUNK NEON GLOW — global visual system */
+:root{scroll-behavior:smooth}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.12) 50%);background-size:100% 4px;opacity:.22}
+body:after{content:"";position:fixed;left:-18vw;bottom:-35vw;width:60vw;height:60vw;border-radius:50%;border:1px solid rgba(0,245,255,.08);box-shadow:0 0 0 36px rgba(0,245,255,.018),0 0 0 72px rgba(255,43,214,.018),0 0 100px rgba(0,245,255,.045);pointer-events:none;z-index:0}
+#authGate,#appShell{position:relative;z-index:1}
+#authGate{background:radial-gradient(ellipse at 50% 50%,rgba(12,17,43,.16),transparent 72%)}
+#authGate section:first-child h1{font-size:clamp(2.8rem,5vw,4.6rem);letter-spacing:-.055em;text-shadow:0 0 34px rgba(0,245,255,.10)}
+#authGate section:first-child .glass{border-radius:14px;background:linear-gradient(145deg,rgba(0,245,255,.055),rgba(255,43,214,.035));border-color:rgba(0,245,255,.18)}
+#authGate .glass.neon-border{border-radius:24px;box-shadow:0 24px 90px rgba(0,0,0,.48),0 0 40px rgba(0,245,255,.08),0 0 80px rgba(255,43,214,.045),inset 0 1px rgba(255,255,255,.07)}
+#authGate .glass.neon-border:before{content:"";position:absolute;left:24px;right:24px;top:0;height:1px;background:linear-gradient(90deg,transparent,#00f5ff,#ff2bd6,transparent);box-shadow:0 0 14px rgba(0,245,255,.65)}
+#authGate label{letter-spacing:.06em;text-transform:uppercase}
+#authGate .field{min-height:48px}
+#authGate button{min-height:46px}
+.sidebar{background:linear-gradient(180deg,rgba(9,13,31,.98),rgba(5,7,18,.98));border-right:1px solid rgba(0,245,255,.22)!important;box-shadow:12px 0 50px rgba(0,0,0,.24),inset -1px 0 rgba(255,43,214,.06)}
+.sidebar:after{content:"";position:absolute;right:-1px;top:8%;height:84%;width:1px;background:linear-gradient(transparent,#00f5ff 25%,#ff2bd6 70%,transparent);opacity:.7;pointer-events:none}
+.nav-item{border-radius:10px;letter-spacing:.015em}
+.nav-item>span{border:1px solid rgba(0,245,255,.12);background:rgba(0,245,255,.045)}
+.nav-item.active{background:linear-gradient(100deg,rgba(0,245,255,.13),rgba(77,124,255,.08) 50%,rgba(255,43,214,.10));border-color:rgba(0,245,255,.34);box-shadow:inset 3px 0 #00f5ff,0 0 22px rgba(0,245,255,.055);text-shadow:0 0 12px rgba(0,245,255,.25)}
+.nav-item.active>span{background:rgba(0,245,255,.12);color:#00f5ff;border-color:rgba(0,245,255,.24);box-shadow:0 0 12px rgba(0,245,255,.10)}
+.main-content{position:relative;z-index:1}
+.main-content>header{border-color:rgba(0,245,255,.2);box-shadow:0 12px 36px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.045)}
+#pageEyebrow{font-weight:800;text-shadow:0 0 12px rgba(0,245,255,.25)}
+#pageTitle{letter-spacing:-.025em}
+.page h2{letter-spacing:-.035em}
+.metric{border-radius:16px!important;background:linear-gradient(145deg,rgba(13,19,43,.98),rgba(7,9,23,.98));border-color:rgba(0,245,255,.16);box-shadow:0 12px 35px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045)}
+.metric:before{content:"";position:absolute;top:0;left:18px;right:18px;height:1px;background:linear-gradient(90deg,transparent,var(--accent,#00f5ff),transparent);opacity:.65}
+.metric:nth-child(2){--accent:#48ffc5}.metric:nth-child(3){--accent:#ff2bd6}.metric:nth-child(4){--accent:#d7ff3f}
+.metric:hover{transform:translateY(-4px);border-color:rgba(0,245,255,.45);box-shadow:0 16px 42px rgba(0,0,0,.3),0 0 28px rgba(0,245,255,.08)}
+.metric>div:nth-child(2){letter-spacing:-.045em;text-shadow:0 0 18px rgba(0,245,255,.10)}
+.glass.rounded-2xl,.glass.rounded-3xl{border-color:rgba(0,245,255,.17)}
+button:not(.nav-item){transition:transform .18s ease,filter .18s ease,box-shadow .18s ease,border-color .18s ease}
+button:not(:disabled):hover{filter:brightness(1.09)}
+button:focus-visible,.field:focus-visible{outline:2px solid #00f5ff;outline-offset:3px}
+.field:focus{background:#070b1b;border-color:#00f5ff;box-shadow:0 0 0 3px rgba(0,245,255,.09),0 0 20px rgba(0,245,255,.08)}
+.table-wrap{border:1px solid rgba(0,245,255,.15);border-radius:14px;background:rgba(5,8,22,.55)}
+table{border-collapse:separate;border-spacing:0}
+th{background:linear-gradient(90deg,rgba(0,245,255,.075),rgba(255,43,214,.045));color:#91f6ff;font-size:10px}
+td{color:#dce5ff}
+tbody tr:hover{background:linear-gradient(90deg,rgba(0,245,255,.055),rgba(255,43,214,.035))}
+.pill{letter-spacing:.07em;text-transform:uppercase}
+.positive{color:#66ffd4;background:rgba(25,255,190,.075);border-color:rgba(25,255,190,.24);box-shadow:0 0 14px rgba(25,255,190,.035)}
+.negative{color:#ff8dbb;background:rgba(255,43,115,.075);border-color:rgba(255,43,115,.23)}
+#sidebarEmail{color:#e9f4ff}
+#logoutBtn{border-color:rgba(255,43,115,.28)}
+#logoutBtn:hover{box-shadow:0 0 18px rgba(255,43,115,.10)}
+#todayLabel{font-variant-numeric:tabular-nums}
+::selection{background:rgba(0,245,255,.28);color:#fff}
+@keyframes cyberPulse{0%,100%{opacity:.65}50%{opacity:1}}
+#authGate .neon-border>div:first-child{animation:cyberPulse 3s ease-in-out infinite}
+@media(max-width:768px){
+ body:after{width:100vw;height:100vw;left:-40vw;bottom:-60vw}
+ #authGate{padding:18px}
+ #authGate .glass.neon-border{padding:22px!important}
+ .main-content>header{border-radius:14px}
+ .metric{min-height:112px}
+}
+@media(prefers-reduced-motion:reduce){#authGate .neon-border>div:first-child{animation:none}}
+
+</style>
+</head>
+<body>
+<!-- Firebase config: replace every placeholder with your project's web app config. -->
+<div id="authGate" class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-5xl grid lg:grid-cols-2 gap-6 items-center">
+    <section class="hidden lg:block px-8 py-10">
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-16 h-16 rounded-2xl neon-border flex items-center justify-center text-3xl">▤</div>
+        <div><div class="text-3xl font-extrabold neon-text">2D Ledger</div><div class="text-lg font-bold text-cyan-300">Manager Pro</div></div>
+      </div>
+      <h1 class="text-4xl font-extrabold leading-tight mb-5">Your numbers.<br><span class="neon-text">Clearer than ever.</span></h1>
+      <p class="text-slate-400 leading-7 max-w-md">လုံခြုံမှုရှိပြီး စာရင်းများကို လွယ်ကူစွာ စီမံခန့်ခွဲနိုင်သော Neon Dark Ledger Dashboard။</p>
+      <div class="grid grid-cols-3 gap-3 mt-9">
+        <div class="glass rounded-2xl p-4"><div class="text-cyan-300 text-xl">◈</div><div class="text-xs mt-2 text-slate-300">Secure Auth</div></div>
+        <div class="glass rounded-2xl p-4"><div class="text-blue-300 text-xl">▦</div><div class="text-xs mt-2 text-slate-300">Live Ledger</div></div>
+        <div class="glass rounded-2xl p-4"><div class="text-purple-300 text-xl">✧</div><div class="text-xs mt-2 text-slate-300">Admin Tools</div></div>
+      </div>
+    </section>
+    <section class="glass neon-border rounded-3xl p-6 sm:p-9 max-w-xl w-full mx-auto">
+      <div class="lg:hidden text-center mb-6"><div class="text-2xl font-extrabold neon-text">2D Ledger Manager Pro</div><div class="text-sm text-slate-400 mt-1">NEON DARK EDITION</div></div>
+      <div class="mb-6"><div class="text-sm text-cyan-300 font-bold tracking-widest">WELCOME BACK</div><h2 class="text-2xl font-extrabold mt-2">အကောင့်ဝင်ပါ</h2><p class="text-sm text-slate-400 mt-2">စာရင်းများကို ဆက်လက်စီမံခန့်ခွဲရန် ဝင်ရောက်ပါ။</p></div>
+      <form id="authForm" class="space-y-4">
+        <div><label class="block text-xs text-slate-300 mb-2" for="authEmail">Email</label><input id="authEmail" class="field" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+        <div><label class="block text-xs text-slate-300 mb-2" for="authPassword">Password</label><input id="authPassword" class="field" type="password" autocomplete="current-password" minlength="6" placeholder="အနည်းဆုံး ၆ လုံး" required></div>
+        <button id="loginBtn" class="btn-primary rounded-xl w-full p-3 font-bold" type="submit">Login ဝင်မည် ↗</button>
+        <button id="registerBtn" class="w-full rounded-xl p-3 font-semibold border border-cyan-800 text-cyan-200 hover:bg-cyan-950/50" type="button">အကောင့်အသစ်ဖွင့်မည်</button>
+      </form>
+      <div id="authMessage" role="status" class="text-sm text-amber-300 mt-4">Firebase ချိတ်ဆက်ရန် config ဖြည့်ပါ။</div>
+      <p class="text-xs text-slate-500 leading-5 mt-5">အသုံးပြုခွင့်နှင့် Admin approval များကို Firebase Security Rules နှင့် server-side policy ဖြင့်လည်း ကာကွယ်ထားရန် လိုအပ်ပါသည်။</p>
+    </section>
+  </div>
+</div>
+
+<div id="appShell" class="hidden min-h-screen">
+  <div id="mobileOverlay" class="mobile-overlay hidden fixed inset-0 z-40 bg-black/70"></div>
+  <aside id="sidebar" class="sidebar glass fixed left-0 top-0 bottom-0 w-64 p-4 flex flex-col border-r border-slate-800/80">
+    <div class="flex items-center gap-3 px-2 py-3 mb-7"><div class="w-11 h-11 rounded-xl neon-border flex items-center justify-center text-xl">▤</div><div><div class="font-extrabold neon-text">2D Ledger</div><div class="text-xs text-cyan-300">Manager Pro</div></div></div>
+    <div class="text-[10px] tracking-[.2em] text-slate-500 px-3 mb-3">MAIN MENU</div>
+    <nav class="space-y-1">
+      <button class="nav-item active" data-page="dashboard"><span>◫</span> Dashboard</button>
+      <button class="nav-item" data-page="ledger"><span>▤</span> Ledger စာရင်း</button>
+      <button class="nav-item" data-page="reports"><span>▥</span> Reports</button>
+      <button class="nav-item" data-page="admin" id="adminNav"><span>⬡</span> Admin Panel</button>
+    </nav>
+    <div class="mt-auto glass rounded-2xl p-3 border border-slate-700/60"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-violet-600 flex items-center justify-center font-bold">U</div><div class="min-w-0"><div id="sidebarEmail" class="text-xs truncate">user@email.com</div><div class="text-[11px] text-emerald-300 mt-1">● Connected</div></div></div><button id="logoutBtn" class="mt-4 w-full rounded-lg border border-rose-900/70 text-rose-300 text-xs p-2 hover:bg-rose-950/40">Logout</button></div>
+  </aside>
+
+  <main class="main-content md:ml-64 min-h-screen p-4 md:p-7">
+    <header class="glass rounded-2xl px-4 py-3 flex items-center justify-between gap-3 mb-7">
+      <div class="flex items-center gap-3"><button id="menuBtn" class="md:hidden rounded-lg border border-slate-700 px-3 py-2">☰</button><div><div id="pageEyebrow" class="text-[10px] text-cyan-300 tracking-[.18em]">OVERVIEW</div><h1 id="pageTitle" class="text-lg md:text-xl font-extrabold">Dashboard</h1></div></div>
+      <div class="flex items-center gap-3"><div class="hidden sm:block text-right"><div id="todayLabel" class="text-xs text-slate-300"></div><div class="text-[10px] text-emerald-300 mt-1">● SYSTEM READY</div></div><div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center font-bold">U</div></div>
+    </header>
+
+    <section id="page-dashboard" class="page space-y-6">
+      <div class="flex flex-wrap justify-between items-end gap-3"><div><h2 class="text-2xl font-extrabold">အနှစ်ချုပ် <span class="neon-text">Overview</span></h2><p class="text-sm text-slate-400 mt-1">သင့်စာရင်းအခြေအနေကို တစ်နေရာတည်းတွင် ကြည့်ရှုပါ။</p></div><button class="btn-primary rounded-xl px-4 py-2.5 text-sm font-bold" data-open-add>＋ စာရင်းအသစ်</button></div>
+      <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <article class="glass metric rounded-2xl p-5" style="--glow:rgba(34,211,238,.2)"><div class="flex justify-between"><span class="text-sm text-slate-400">လက်ကျန်ငွေ</span><span class="text-cyan-300">◈</span></div><div id="balanceMetric" class="text-2xl font-extrabold mt-4">Ks 0</div><div class="text-xs text-slate-500 mt-2">စုစုပေါင်း Net Balance</div></article>
+        <article class="glass metric rounded-2xl p-5" style="--glow:rgba(45,212,191,.18)"><div class="flex justify-between"><span class="text-sm text-slate-400">ဝင်ငွေ</span><span class="text-emerald-300">↗</span></div><div id="incomeMetric" class="text-2xl font-extrabold mt-4 text-emerald-300">Ks 0</div><div class="text-xs text-slate-500 mt-2">စုစုပေါင်း Income</div></article>
+        <article class="glass metric rounded-2xl p-5" style="--glow:rgba(251,113,133,.18)"><div class="flex justify-between"><span class="text-sm text-slate-400">ထွက်ငွေ</span><span class="text-rose-300">↘</span></div><div id="expenseMetric" class="text-2xl font-extrabold mt-4 text-rose-300">Ks 0</div><div class="text-xs text-slate-500 mt-2">စုစုပေါင်း Expense</div></article>
+        <article class="glass metric rounded-2xl p-5" style="--glow:rgba(168,85,247,.18)"><div class="flex justify-between"><span class="text-sm text-slate-400">စာရင်းအရေအတွက်</span><span class="text-purple-300">▤</span></div><div id="countMetric" class="text-2xl font-extrabold mt-4">0</div><div class="text-xs text-slate-500 mt-2">Total Transactions</div></article>
+      </div>
+      <div class="grid xl:grid-cols-3 gap-4">
+        <section class="glass rounded-2xl p-5 xl:col-span-2"><div class="flex items-center justify-between mb-4"><div><h3 class="font-bold">ငွေဝင် / ငွေထွက်</h3><p class="text-xs text-slate-500 mt-1">လအလိုက် စာရင်းအခြေအနေ</p></div><span class="pill positive">LIVE DATA</span></div><div class="h-64"><canvas id="trendChart"></canvas></div></section>
+        <section class="glass rounded-2xl p-5"><h3 class="font-bold mb-1">စာရင်းအမျိုးအစား</h3><p class="text-xs text-slate-500 mb-3">Income vs Expense</p><div class="h-56"><canvas id="mixChart"></canvas></div><div class="text-xs text-slate-500 mt-3">Firebase ထဲရှိ သင့်စာရင်းများမှ တွက်ချက်ထားသည်။</div></section>
+      </div>
+      <section class="glass rounded-2xl p-5"><div class="flex items-center justify-between mb-4"><h3 class="font-bold">နောက်ဆုံးစာရင်းများ</h3><button class="text-sm text-cyan-300 hover:text-cyan-100" data-go="ledger">အားလုံးကြည့်ရန် →</button></div><div id="recentRows" class="space-y-2"><div class="text-sm text-slate-500">စာရင်းများ မရှိသေးပါ။</div></div></section>
+    </section>
+
+    <section id="page-ledger" class="page hidden space-y-5">
+      <div class="flex flex-wrap justify-between items-end gap-3"><div><h2 class="text-2xl font-extrabold">Ledger <span class="neon-text">စာရင်းများ</span></h2><p class="text-sm text-slate-400 mt-1">ဝင်ငွေ၊ ထွက်ငွေတို့ကို ထည့်သွင်း၊ ပြင်ဆင်၊ ရှာဖွေပါ။</p></div><button class="btn-primary rounded-xl px-4 py-2.5 text-sm font-bold" data-open-add>＋ စာရင်းအသစ်</button></div>
+      <section class="glass rounded-2xl p-4 grid md:grid-cols-4 gap-3"><input id="searchInput" class="field md:col-span-2" placeholder="🔎 မှတ်ချက် / အမျိုးအစား ရှာရန်"><input id="fromDate" class="field" type="date" aria-label="From date"><input id="toDate" class="field" type="date" aria-label="To date"><select id="typeFilter" class="field md:col-span-2"><option value="all">အမျိုးအစားအားလုံး</option><option value="income">ဝင်ငွေ</option><option value="expense">ထွက်ငွေ</option></select><button id="clearFilters" class="rounded-xl border border-slate-700 text-slate-300 p-3 text-sm">Filter ရှင်းရန်</button></section>
+      <section class="glass rounded-2xl overflow-hidden"><div class="table-wrap"><table><thead><tr><th>ရက်စွဲ</th><th>အမျိုးအစား</th><th>မှတ်ချက်</th><th>ငွေပမာဏ</th><th>လုပ်ဆောင်ချက်</th></tr></thead><tbody id="ledgerRows"><tr><td colspan="5" class="text-center text-slate-500">စာရင်းမရှိသေးပါ။</td></tr></tbody></table></div><div id="ledgerFooter" class="p-4 text-xs text-slate-500 border-t border-slate-800">0 records</div></section>
+    </section>
+
+    <section id="page-reports" class="page hidden space-y-5"><div><h2 class="text-2xl font-extrabold">Reports <span class="neon-text">အစီရင်ခံစာ</span></h2><p class="text-sm text-slate-400 mt-1">သင့်စာရင်းများကို CSV ဖိုင်အဖြစ် ထုတ်ယူနိုင်သည်။</p></div><div class="glass rounded-2xl p-6"><h3 class="font-bold mb-2">Ledger Export</h3><p class="text-sm text-slate-400 mb-5">လက်ရှိအသုံးပြုသူ၏ စာရင်းများကို CSV အဖြစ် download လုပ်ပါ။</p><button id="exportBtn" class="btn-primary rounded-xl px-5 py-3 font-bold">↓ CSV Export</button></div></section>
+
+    <section id="page-admin" class="page hidden space-y-5">
+      <div><h2 class="text-2xl font-extrabold">Admin <span class="neon-text">Control Center</span></h2><p class="text-sm text-slate-400 mt-1">Admin ခွင့်ပြုထားသော account များအတွက်သာ။</p></div>
+      <div id="adminDenied" class="glass rounded-2xl p-6 text-amber-300">Admin ခွင့်မရှိပါ။ Firebase config ထဲရှိ ADMIN_EMAILS သို့ သင့် admin email ကို ထည့်ပြီး Firestore Rules ကိုလည်း သတ်မှတ်ပါ။</div>
+      <div id="adminContent" class="hidden space-y-4"><div class="grid sm:grid-cols-3 gap-4"><div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Registered users</div><div id="userCount" class="text-3xl font-extrabold neon-text mt-3">0</div></div><div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Pending approval</div><div id="pendingCount" class="text-3xl font-extrabold text-amber-300 mt-3">0</div></div><div class="glass rounded-2xl p-5"><div class="text-sm text-slate-400">Current access</div><div class="text-xl font-bold text-emerald-300 mt-3">Admin</div></div></div><div class="glass rounded-2xl overflow-hidden"><div class="p-4 font-bold">User Management</div><div class="table-wrap"><table><thead><tr><th>Email</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody id="userRows"></tbody></table></div></div></div>
+    </section>
+  </main>
+</div>
+
+<div id="entryModal" class="hidden fixed inset-0 z-[80] bg-slate-950/80 backdrop-blur-sm p-4 flex items-center justify-center">
+  <section class="glass neon-border rounded-2xl p-6 w-full max-w-lg"><div class="flex justify-between items-center mb-5"><div><div class="text-xs text-cyan-300 tracking-widest">LEDGER ENTRY</div><h2 id="modalTitle" class="text-xl font-extrabold mt-1">စာရင်းအသစ်ထည့်ရန်</h2></div><button id="closeModal" class="text-slate-400 hover:text-white text-2xl" aria-label="Close">×</button></div>
+    <form id="entryForm" class="space-y-4"><input id="entryId" type="hidden"><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs text-slate-300 mb-2">အမျိုးအစား</label><select id="entryType" class="field"><option value="income">ဝင်ငွေ</option><option value="expense">ထွက်ငွေ</option></select></div><div><label class="block text-xs text-slate-300 mb-2">ရက်စွဲ</label><input id="entryDate" type="date" class="field" required></div></div><div><label class="block text-xs text-slate-300 mb-2">ငွေပမာဏ (Ks)</label><input id="entryAmount" type="number" min="1" step="1" class="field" placeholder="ဥပမာ 250000" required></div><div><label class="block text-xs text-slate-300 mb-2">မှတ်ချက် / အမျိုးအစား</label><input id="entryNote" class="field" maxlength="160" placeholder="ဥပမာ - နေ့စဉ်ဝင်ငွေ" required></div><div class="flex gap-3 pt-2"><button type="button" id="cancelModal" class="flex-1 rounded-xl border border-slate-700 p-3">မလုပ်တော့ပါ</button><button id="saveEntryBtn" type="submit" class="btn-primary flex-1 rounded-xl p-3 font-bold">သိမ်းဆည်းမည်</button></div></form>
+  </section>
+</div>
+<div id="toast" class="fixed bottom-5 right-5 z-[100] hidden max-w-sm rounded-xl border border-cyan-700 bg-slate-900 px-4 py-3 text-sm shadow-2xl" role="status"></div>
+
+<script>
+/* IMPORTANT: Replace with your actual Firebase project's config. Never put service-account keys here. */
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_FIREBASE_APP_ID"
+};
+/* Admin UI allowlist only. Enforce admin permissions in Firestore Security Rules too. */
+const ADMIN_EMAILS = ["admin@example.com"].map(v => v.toLowerCase());
+
+let auth = null, db = null, currentUser = null, unsubscribeEntries = null, unsubscribeUsers = null;
+let entries = [], allUsers = [], trendChart = null, mixChart = null, toastTimer = null;
+const $ = id => document.getElementById(id);
+const money = n => "Ks " + Number(n || 0).toLocaleString("en-US");
+const today = () => new Date().toISOString().slice(0,10);
+const isAdmin = () => !!currentUser && ADMIN_EMAILS.includes((currentUser.email || "").toLowerCase());
+
+function toast(message, bad=false) {
+  const el=$("toast"); el.textContent=message; el.classList.remove("hidden");
+  el.style.borderColor=bad?"rgba(251,113,133,.65)":"rgba(34,211,238,.6)";
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.add("hidden"),3800);
+}
+function setAuthMessage(message,bad=false){$("authMessage").textContent=message;$("authMessage").style.color=bad?"#fda4af":"#fcd34d";}
+function friendlyError(e){
+  const map={"auth/invalid-email":"Email ပုံစံမမှန်ပါ။","auth/user-not-found":"အကောင့်မတွေ့ပါ။","auth/wrong-password":"Password မှားနေပါသည်။","auth/invalid-credential":"Email သို့မဟုတ် Password မှားနေပါသည်။","auth/email-already-in-use":"ဒီ Email ဖြင့် အကောင့်ရှိပြီးသားပါ။","auth/weak-password":"ပိုမိုခိုင်မာသော Password သုံးပါ။","auth/network-request-failed":"Internet ချိတ်ဆက်မှုကို စစ်ဆေးပါ။","permission-denied":"Firebase Security Rules က ခွင့်မပြုပါ။"};
+  return map[e.code] || e.message || "လုပ်ဆောင်မှု မအောင်မြင်ပါ။";
+}
+function showAuth(){ $("authGate").classList.remove("hidden"); $("appShell").classList.add("hidden"); }
+function showApp(){
+  $("authGate").classList.add("hidden"); $("appShell").classList.remove("hidden");
+  $("sidebarEmail").textContent=currentUser.email||"Signed in"; $("adminNav").classList.toggle("hidden",!isAdmin());
+  $("todayLabel").textContent=new Date().toLocaleString();
+  showPage("dashboard");
+}
+function showPage(page){
+  if(page==="admin"&&!isAdmin()){toast("Admin ခွင့်မရှိပါ။",true);page="dashboard";}
+  document.querySelectorAll(".page").forEach(el=>el.classList.add("hidden"));
+  $("page-"+page).classList.remove("hidden");
+  document.querySelectorAll(".nav-item").forEach(el=>el.classList.toggle("active",el.dataset.page===page));
+  const names={dashboard:["OVERVIEW","Dashboard"],ledger:["TRANSACTIONS","Ledger စာရင်း"],reports:["ANALYTICS","Reports"],admin:["CONTROL CENTER","Admin Panel"]};
+  $("pageEyebrow").textContent=names[page][0];$("pageTitle").textContent=names[page][1];
+  $("sidebar").classList.remove("open");$("mobileOverlay").classList.remove("show");
+}
+function initFirebase(){
+  if(firebaseConfig.apiKey.startsWith("YOUR_") || firebaseConfig.projectId==="YOUR_PROJECT_ID"){
+    setAuthMessage("Firebase Console မှ Web App Config ကို ကူးထည့်ပါ။",true); return;
+  }
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+    auth=firebase.auth();db=firebase.firestore();
+    auth.onAuthStateChanged(user=>{
+      currentUser=user;
+      if(user){showApp();subscribeEntries();if(isAdmin())subscribeUsers();else stopUsers();}
+      else{stopEntries();stopUsers();entries=[];showAuth();}
+    });
+    setAuthMessage("Firebase ချိတ်ဆက်ရန် အသင့်ဖြစ်ပါပြီ။");
+  }catch(e){setAuthMessage("Firebase error: "+friendlyError(e),true);}
+}
+$("authForm").addEventListener("submit",async e=>{
+  e.preventDefault();if(!auth){setAuthMessage("Firebase config မဖြည့်ရသေးပါ။",true);return;}
+  $("loginBtn").disabled=true;
+  try{await auth.signInWithEmailAndPassword($("authEmail").value.trim(),$("authPassword").value);setAuthMessage("Login အောင်မြင်ပါပြီ။");}
+  catch(err){setAuthMessage(friendlyError(err),true);}finally{$("loginBtn").disabled=false;}
+});
+$("registerBtn").addEventListener("click",async()=>{
+  if(!auth){setAuthMessage("Firebase config မဖြည့်ရသေးပါ။",true);return;}
+  const email=$("authEmail").value.trim(),password=$("authPassword").value;
+  if(!email||password.length<6){setAuthMessage("Email ထည့်ပြီး Password အနည်းဆုံး ၆ လုံး ရိုက်ပါ။",true);return;}
+  $("registerBtn").disabled=true;
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,password);
+    await db.collection("users").doc(cred.user.uid).set({email,role:"user",status:"pending",createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    setAuthMessage("အကောင့်ဖွင့်ပြီးပါပြီ။ Admin approval ကို စောင့်ပါ။");
+  }catch(err){setAuthMessage(friendlyError(err),true);}finally{$("registerBtn").disabled=false;}
+});
+document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
+document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.go)));
+$("logoutBtn").addEventListener("click",()=>auth&&auth.signOut());
+$("menuBtn").addEventListener("click",()=>{$("sidebar").classList.toggle("open");$("mobileOverlay").classList.toggle("show");});
+$("mobileOverlay").addEventListener("click",()=>{$("sidebar").classList.remove("open");$("mobileOverlay").classList.remove("show");});
+
+function subscribeEntries(){
+  stopEntries();
+  if(!db||!currentUser)return;
+  unsubscribeEntries=db.collection("users").doc(currentUser.uid).collection("entries").orderBy("date","desc").onSnapshot(snap=>{
+    entries=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();
+  },e=>toast("စာရင်းဖတ်မရပါ: "+friendlyError(e),true));
+}
+function stopEntries(){if(unsubscribeEntries){unsubscribeEntries();unsubscribeEntries=null;}}
+function stopUsers(){if(unsubscribeUsers){unsubscribeUsers();unsubscribeUsers=null;}}
+function subscribeUsers(){
+  stopUsers();if(!db||!isAdmin())return;
+  $("adminDenied").classList.add("hidden");$("adminContent").classList.remove("hidden");
+  unsubscribeUsers=db.collection("users").onSnapshot(snap=>{
+    allUsers=snap.docs.map(d=>({id:d.id,...d.data()}));renderUsers();
+  },e=>toast("User list ဖတ်မရပါ: "+friendlyError(e),true));
+}
+function renderAll(){
+  const income=entries.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount||0),0);
+  const expense=entries.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount||0),0);
+  $("balanceMetric").textContent=money(income-expense);$("incomeMetric").textContent=money(income);$("expenseMetric").textContent=money(expense);$("countMetric").textContent=entries.length.toLocaleString();
+  renderLedger();renderRecent();renderCharts();
+}
+function filteredEntries(){
+  const q=$("searchInput").value.trim().toLowerCase(),from=$("fromDate").value,to=$("toDate").value,type=$("typeFilter").value;
+  return entries.filter(x=>(!q||String(x.note||"").toLowerCase().includes(q)||String(x.type||"").includes(q))&&(!from||x.date>=from)&&(!to||x.date<=to)&&(type==="all"||x.type===type)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+function renderLedger(){
+  const list=filteredEntries(),body=$("ledgerRows");
+  if(!list.length){body.innerHTML='<tr><td colspan="5" class="text-center text-slate-500 py-8">ကိုက်ညီသောစာရင်း မရှိပါ။</td></tr>';}
+  else body.innerHTML=list.map(x=>`<tr><td class="whitespace-nowrap">${escapeHtml(x.date||"—")}</td><td><span class="pill ${x.type==="income"?"positive":"negative"}">${x.type==="income"?"↗ ဝင်ငွေ":"↘ ထွက်ငွေ"}</span></td><td>${escapeHtml(x.note||"—")}</td><td class="font-bold ${x.type==="income"?"text-emerald-300":"text-rose-300"}">${x.type==="expense"?"−":"+"}${money(x.amount)}</td><td><div class="flex gap-2"><button class="rounded-lg border border-blue-800 text-blue-300 px-2 py-1" data-edit="${x.id}">ပြင်</button><button class="rounded-lg border border-rose-900 text-rose-300 px-2 py-1" data-delete="${x.id}">ဖျက်</button></div></td></tr>`).join("");
+  $("ledgerFooter").textContent=`${list.length} records · Total ${entries.length}`;
+  body.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(b.dataset.edit)));
+  body.querySelectorAll("[data-delete]").forEach(b=>b.addEventListener("click",()=>deleteEntry(b.dataset.delete)));
+}
+function renderRecent(){
+  const list=[...entries].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
+  $("recentRows").innerHTML=list.length?list.map(x=>`<div class="flex items-center justify-between gap-3 rounded-xl bg-slate-950/40 border border-slate-800/70 p-3"><div class="min-w-0"><div class="text-sm truncate">${escapeHtml(x.note||"—")}</div><div class="text-xs text-slate-500 mt-1">${escapeHtml(x.date||"—")}</div></div><div class="font-bold text-sm whitespace-nowrap ${x.type==="income"?"text-emerald-300":"text-rose-300"}">${x.type==="expense"?"−":"+"}${money(x.amount)}</div></div>`).join(""):'<div class="text-sm text-slate-500">စာရင်းများ မရှိသေးပါ။</div>';
+}
+function renderCharts(){
+  if(typeof Chart==="undefined")return;
+  const monthKeys=[];const now=new Date();
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);monthKeys.push({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`,label:d.toLocaleString("en-US",{month:"short"})});}
+  const inc=monthKeys.map(m=>entries.filter(x=>x.type==="income"&&String(x.date||"").startsWith(m.key)).reduce((s,x)=>s+Number(x.amount||0),0));
+  const exp=monthKeys.map(m=>entries.filter(x=>x.type==="expense"&&String(x.date||"").startsWith(m.key)).reduce((s,x)=>s+Number(x.amount||0),0));
+  const common={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:"#a9bddc",boxWidth:10}}},scales:{x:{ticks:{color:"#8499bc"},grid:{color:"rgba(71,101,154,.12)"}},y:{ticks:{color:"#8499bc",callback:v=>Number(v).toLocaleString()},grid:{color:"rgba(71,101,154,.15)"}}}};
+  if(trendChart)trendChart.destroy();
+  trendChart=new Chart($("trendChart"),{type:"line",data:{labels:monthKeys.map(m=>m.label),datasets:[{label:"ဝင်ငွေ",data:inc,borderColor:"#22d3ee",backgroundColor:"rgba(34,211,238,.1)",fill:true,tension:.35},{label:"ထွက်ငွေ",data:exp,borderColor:"#f472b6",backgroundColor:"rgba(244,114,182,.07)",fill:true,tension:.35}]},options:common});
+  const income=entries.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount||0),0),expense=entries.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount||0),0);
+  if(mixChart)mixChart.destroy();
+  mixChart=new Chart($("mixChart"),{type:"doughnut",data:{labels:["ဝင်ငွေ","ထွက်ငွေ"],datasets:[{data:[income,expense],backgroundColor:["#22d3ee","#a855f7"],borderColor:"#0b1224",borderWidth:4,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#a9bddc",padding:18}}},cutout:"70%"}});
+}
+function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function openAdd(){
+  $("entryForm").reset();$("entryId").value="";$("entryDate").value=today();$("modalTitle").textContent="စာရင်းအသစ်ထည့်ရန်";$("entryModal").classList.remove("hidden");
+}
+function openEdit(id){
+  const x=entries.find(e=>e.id===id);if(!x)return;
+  $("entryId").value=x.id;$("entryType").value=x.type||"income";$("entryDate").value=x.date||today();$("entryAmount").value=x.amount||"";$("entryNote").value=x.note||"";
+  $("modalTitle").textContent="စာရင်းပြင်ဆင်ရန်";$("entryModal").classList.remove("hidden");
+}
+function closeModal(){$("entryModal").classList.add("hidden");}
+document.querySelectorAll("[data-open-add]").forEach(b=>b.addEventListener("click",openAdd));
+$("closeModal").addEventListener("click",closeModal);$("cancelModal").addEventListener("click",closeModal);
+$("entryModal").addEventListener("click",e=>{if(e.target===$("entryModal"))closeModal();});
+$("entryForm").addEventListener("submit",async e=>{
+  e.preventDefault();if(!db||!currentUser)return toast("Firebase ချိတ်ဆက်မှု မရှိပါ။",true);
+  const amount=Number($("entryAmount").value);if(!Number.isFinite(amount)||amount<=0)return toast("ငွေပမာဏ မှန်ကန်စွာထည့်ပါ။",true);
+  const id=$("entryId").value;
+  const payload={type:$("entryType").value,date:$("entryDate").value,amount,note:$("entryNote").value.trim(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(!payload.date||!payload.note)return toast("လိုအပ်သောအချက်အလက်များ ဖြည့်ပါ။",true);
+  $("saveEntryBtn").disabled=true;
+  try{
+    const ref=db.collection("users").doc(currentUser.uid).collection("entries");
+    if(id)await ref.doc(id).update(payload);else await ref.add({...payload,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    closeModal();toast(id?"စာရင်းပြင်ဆင်ပြီးပါပြီ။":"စာရင်းသိမ်းဆည်းပြီးပါပြီ။");
+  }catch(err){toast(friendlyError(err),true);}finally{$("saveEntryBtn").disabled=false;}
+});
+async function deleteEntry(id){
+  const x=entries.find(e=>e.id===id);if(!x||!confirm(`"${x.note||"စာရင်း"}" ကို ဖျက်မှာ သေချာပါသလား?`))return;
+  try{await db.collection("users").doc(currentUser.uid).collection("entries").doc(id).delete();toast("စာရင်းဖျက်ပြီးပါပြီ။");}
+  catch(err){toast(friendlyError(err),true);}
+}
+["searchInput","fromDate","toDate","typeFilter"].forEach(id=>$(id).addEventListener("input",renderLedger));
+$("clearFilters").addEventListener("click",()=>{$("searchInput").value="";$("fromDate").value="";$("toDate").value="";$("typeFilter").value="all";renderLedger();});
+$("exportBtn").addEventListener("click",()=>{
+  const rows=[["Date","Type","Note","Amount"],...filteredEntries().map(x=>[x.date,x.type,x.note,x.amount])];
+  const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=`ledger-${today()}.csv`;a.click();URL.revokeObjectURL(url);
+});
+function renderUsers(){
+  $("userCount").textContent=allUsers.length;
+  $("pendingCount").textContent=allUsers.filter(u=>(u.status||"pending")==="pending").length;
+  $("userRows").innerHTML=allUsers.map(u=>`<tr><td>${escapeHtml(u.email||u.id)}</td><td><span class="pill ${(u.status||"pending")==="active"?"positive":"negative"}">${escapeHtml(u.status||"pending")}</span></td><td>${u.createdAt&&u.createdAt.toDate?u.createdAt.toDate().toLocaleDateString():"—"}</td><td><button class="rounded-lg border border-cyan-800 text-cyan-300 px-2 py-1" data-approve="${u.id}">${(u.status||"pending")==="active"?"Pending ပြောင်း":"Approve"}</button></td></tr>`).join("");
+  $("userRows").querySelectorAll("[data-approve]").forEach(b=>b.addEventListener("click",async()=>{
+    if(!isAdmin())return toast("Admin ခွင့်မရှိပါ။",true);
+    const u=allUsers.find(x=>x.id===b.dataset.approve);if(!u)return;
+    const next=(u.status||"pending")==="active"?"pending":"active";
+    if(!confirm(`${u.email||u.id} ကို ${next} ပြောင်းမလား?`))return;
+    try{await db.collection("users").doc(u.id).set({status:next,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});toast("User status ပြောင်းပြီးပါပြီ။");}
+    catch(err){toast(friendlyError(err),true);}
+  }));
+}
+initFirebase();
+</script>
+</body>
+</html>
